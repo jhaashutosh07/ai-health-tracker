@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma:*)",
+      "Bash(npm run db:seed:*)",
+      "Bash(nul)",
+      "Bash(npm install:*)",
+      "Bash(cmd //c taskkill //PID 18504 //F)",
+      "Bash(npm run dev:*)",
+      "Bash(cmd //c \"if exist app rmdir //s //q app\")",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell -Command \"(Get-Content ''C:\\Users\\jhaas\\Desktop\\ai powered_job tracker\\prisma\\seed.ts'').Count\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
