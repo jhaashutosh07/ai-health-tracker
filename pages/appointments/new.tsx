@@ -2,6 +2,24 @@ import { useState, useEffect, FormEvent } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
+import {
+  Search,
+  Star,
+  MapPin,
+  Phone,
+  Mail,
+  Briefcase,
+  BadgeDollarSign,
+  CheckCircle2,
+  Calendar,
+  Clock,
+  Video,
+  Building2,
+  Loader2,
+  ArrowRight,
+  Wifi,
+} from 'lucide-react'
+import AppShell from '@/components/AppShell'
 
 interface Doctor {
   id: string
@@ -11,12 +29,10 @@ interface Doctor {
   phone: string
   experience: number
   location: string
-  address: string | null
   city: string | null
   rating: number | null
   reviewCount: number
   consultationFee: number | null
-  availableSlots: string
   distance?: number | null
   distanceText?: string | null
 }
@@ -30,34 +46,34 @@ const SPECIALIZATIONS = [
   'Orthopedic',
   'Pediatrician',
   'Psychiatrist',
-  'ENT Specialist'
+  'ENT Specialist',
 ]
-
-const APPOINTMENT_TYPES = ['ONLINE', 'OFFLINE']
 
 export default function NewAppointment() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { doctorId } = router.query
+  const { doctorId, symptomLogId } = router.query
 
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [success, setSuccess] = useState(false)
 
-  // Filters
   const [specialization, setSpecialization] = useState('')
   const [searchName, setSearchName] = useState('')
   const [sortBy, setSortBy] = useState('name')
 
-  // Form data
   const [appointmentDate, setAppointmentDate] = useState('')
   const [appointmentTime, setAppointmentTime] = useState('')
-  const [appointmentType, setAppointmentType] = useState('OFFLINE')
+  const [appointmentType, setAppointmentType] = useState<'ONLINE' | 'OFFLINE'>('ONLINE')
   const [reason, setReason] = useState('')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    if (status === 'unauthenticated') router.push('/api/auth/signin')
+  }, [status, router])
 
   useEffect(() => {
     fetchDoctors()
@@ -65,10 +81,8 @@ export default function NewAppointment() {
 
   useEffect(() => {
     if (doctorId && doctors.length > 0) {
-      const doctor = doctors.find(d => d.id === doctorId)
-      if (doctor) {
-        setSelectedDoctor(doctor)
-      }
+      const doc = doctors.find(d => d.id === doctorId)
+      if (doc) setSelectedDoctor(doc)
     }
   }, [doctorId, doctors])
 
@@ -79,17 +93,13 @@ export default function NewAppointment() {
         ...(specialization && specialization !== 'All Specializations' && { specialization }),
         ...(searchName && { name: searchName }),
         sortBy,
-        order: 'asc'
+        order: 'asc',
       })
-
-      const response = await fetch(`/api/doctors/search?${params}`)
-      const data = await response.json()
-
-      if (response.ok) {
-        setDoctors(data.doctors)
-      }
-    } catch (error) {
-      console.error('Error fetching doctors:', error)
+      const res = await fetch(`/api/doctors/search?${params}`)
+      const data = await res.json()
+      if (res.ok) setDoctors(data.doctors)
+    } catch (e) {
+      console.error(e)
     } finally {
       setLoading(false)
     }
@@ -97,325 +107,366 @@ export default function NewAppointment() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!selectedDoctor) {
-      setError('Please select a doctor')
-      return
-    }
-
+    if (!selectedDoctor) { setError('Please select a doctor first.'); return }
     setSubmitting(true)
     setError('')
-
     try {
-      const response = await fetch('/api/appointments/create', {
+      const res = await fetch('/api/appointments/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           doctorId: selectedDoctor.id,
           appointmentDate,
           appointmentTime,
           type: appointmentType,
           reason,
-          notes,
+          notes: notes || undefined,
+          symptomLogId: symptomLogId || undefined,
         }),
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
+      const data = await res.json()
+      if (res.ok) {
         setSuccess(true)
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 2000)
+        setTimeout(() => router.push('/appointments'), 2500)
       } else {
-        setError(data.message || 'Failed to book appointment')
+        setError(data.message || 'Failed to book appointment. Please try again.')
       }
-    } catch (err) {
-      setError('Failed to book appointment. Please try again.')
+    } catch {
+      setError('Something went wrong. Please try again.')
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
-  }
-
-  if (!session) {
-    router.push('/auth/signin')
-    return null
-  }
-
-  // Get minimum date (today)
   const today = new Date().toISOString().split('T')[0]
 
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Book an Appointment</h1>
-          <p className="mt-2 text-gray-600">Select a doctor and choose your preferred time</p>
+  if (status === 'loading') {
+    return (
+      <AppShell title="Book Appointment">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-5 h-5 rounded-full border-2 border-sky-500/40 border-t-sky-500 animate-spin" />
         </div>
+      </AppShell>
+    )
+  }
 
-        {success && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-green-800 font-semibold">Appointment booked successfully!</p>
-            <p className="text-green-600 text-sm">Redirecting to dashboard...</p>
+  return (
+    <AppShell
+      title="Book Appointment"
+      breadcrumb={[
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Appointments', href: '/appointments' },
+        { label: 'New' },
+      ]}
+    >
+      <div className="p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Header */}
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Book an Appointment</h1>
+            <p className="text-slate-500 text-sm mt-1">
+              Search for a specialist and choose your preferred date and time.
+            </p>
           </div>
-        )}
 
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800">{error}</p>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Doctor Selection */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Select a Doctor</h2>
-
-              {/* Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Specialization
-                  </label>
-                  <select
-                    value={specialization}
-                    onChange={(e) => setSpecialization(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    {SPECIALIZATIONS.map(spec => (
-                      <option key={spec} value={spec}>{spec}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search by Name
-                  </label>
-                  <input
-                    type="text"
-                    value={searchName}
-                    onChange={(e) => setSearchName(e.target.value)}
-                    placeholder="Doctor name..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sort By
-                  </label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="name">Name</option>
-                    <option value="rating">Rating</option>
-                    <option value="experience">Experience</option>
-                    <option value="fee">Consultation Fee</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Doctors List */}
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {loading ? (
-                  <p className="text-gray-500 text-center py-8">Loading doctors...</p>
-                ) : doctors.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">No doctors found</p>
-                ) : (
-                  doctors.map((doctor) => (
-                    <div
-                      key={doctor.id}
-                      onClick={() => setSelectedDoctor(doctor)}
-                      className={`border rounded-lg p-4 cursor-pointer transition-all ${
-                        selectedDoctor?.id === doctor.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-lg">{doctor.name}</h3>
-                            {doctor.distanceText && (
-                              <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">
-                                📍 {doctor.distanceText}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600">{doctor.specialization}</p>
-                          <p className="text-sm text-gray-500 mt-1">{doctor.location}</p>
-
-                          {/* Contact Details */}
-                          <div className="mt-2 space-y-1">
-                            <div className="flex items-center text-sm text-gray-600">
-                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                              </svg>
-                              <a href={`mailto:${doctor.email}`} className="hover:text-blue-600 hover:underline">
-                                {doctor.email}
-                              </a>
-                            </div>
-                            <div className="flex items-center text-sm text-gray-600">
-                              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                              </svg>
-                              <a href={`tel:${doctor.phone}`} className="hover:text-blue-600 hover:underline">
-                                {doctor.phone}
-                              </a>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center mt-2 space-x-4 text-sm">
-                            <span className="text-gray-600">
-                              {doctor.experience} years exp
-                            </span>
-                            {doctor.rating && (
-                              <span className="text-yellow-600">
-                                ⭐ {doctor.rating.toFixed(1)} ({doctor.reviewCount})
-                              </span>
-                            )}
-                            {doctor.consultationFee && (
-                              <span className="text-gray-600">
-                                Fee: ${doctor.consultationFee}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {selectedDoctor?.id === doctor.id && (
-                          <span className="text-blue-600 font-semibold">✓ Selected</span>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="mt-4">
-                <Link
-                  href="/find-doctors"
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  → Find doctors near you on map
-                </Link>
+          {/* Success */}
+          {success && (
+            <div className="card p-5 bg-emerald-50 border-emerald-200 flex items-center gap-3">
+              <CheckCircle2 size={20} className="text-emerald-600 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-emerald-900">Appointment booked successfully!</p>
+                <p className="text-sm text-emerald-700">Redirecting to your appointments…</p>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Appointment Form */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow p-6 sticky top-8">
-              <h2 className="text-xl font-semibold mb-4">Appointment Details</h2>
+          {/* Error */}
+          {error && (
+            <div className="card p-4 bg-red-50 border-red-200">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
 
-              {selectedDoctor ? (
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="bg-blue-50 p-3 rounded-lg mb-4">
-                    <p className="font-semibold text-sm text-blue-900">{selectedDoctor.name}</p>
-                    <p className="text-xs text-blue-700">{selectedDoctor.specialization}</p>
-                  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Doctor selection */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="card p-5">
+                <h2 className="font-semibold text-slate-900 mb-4">Find a Doctor</h2>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Appointment Date *
-                    </label>
+                {/* Filters */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                  <div className="relative">
+                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
-                      type="date"
-                      min={today}
-                      value={appointmentDate}
-                      onChange={(e) => setAppointmentDate(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      type="text"
+                      value={searchName}
+                      onChange={e => setSearchName(e.target.value)}
+                      placeholder="Search by name…"
+                      className="input pl-9 text-sm"
                     />
                   </div>
+                  <select
+                    value={specialization}
+                    onChange={e => setSpecialization(e.target.value)}
+                    className="input text-sm"
+                  >
+                    {SPECIALIZATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value)}
+                    className="input text-sm"
+                  >
+                    <option value="name">Sort: Name</option>
+                    <option value="rating">Sort: Rating</option>
+                    <option value="experience">Sort: Experience</option>
+                    <option value="fee">Sort: Fee</option>
+                  </select>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Appointment Time *
-                    </label>
-                    <input
-                      type="time"
-                      value={appointmentTime}
-                      onChange={(e) => setAppointmentTime(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
+                {/* Doctor list */}
+                <div className="space-y-3 max-h-[440px] overflow-y-auto scrollbar-thin pr-1">
+                  {loading ? (
+                    <div className="flex items-center justify-center py-12 gap-2 text-slate-400">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span className="text-sm">Searching doctors…</span>
+                    </div>
+                  ) : doctors.length === 0 ? (
+                    <div className="text-center py-12">
+                      <p className="text-slate-500 text-sm">No doctors found. Try a different search.</p>
+                    </div>
+                  ) : (
+                    doctors.map(doc => {
+                      const isSelected = selectedDoctor?.id === doc.id
+                      return (
+                        <button
+                          key={doc.id}
+                          type="button"
+                          onClick={() => setSelectedDoctor(doc)}
+                          className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${
+                            isSelected
+                              ? 'border-sky-500 bg-sky-50'
+                              : 'border-slate-100 hover:border-slate-200 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                              isSelected ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {doc.name[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2 flex-wrap">
+                                <div>
+                                  <p className="font-semibold text-slate-900">Dr. {doc.name}</p>
+                                  <p className="text-xs text-slate-500">{doc.specialization}</p>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {doc.distanceText && (
+                                    <span className="badge bg-sky-50 text-sky-700 border-sky-200 text-[10px]">
+                                      📍 {doc.distanceText}
+                                    </span>
+                                  )}
+                                  {isSelected && (
+                                    <span className="badge badge-confirmed gap-1 text-[10px]">
+                                      <CheckCircle2 size={9} /> Selected
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4 mt-2 flex-wrap text-xs text-slate-500">
+                                {doc.city && (
+                                  <span className="flex items-center gap-1">
+                                    <MapPin size={11} /> {doc.city}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1">
+                                  <Briefcase size={11} /> {doc.experience} yrs exp
+                                </span>
+                                {doc.rating && (
+                                  <span className="flex items-center gap-1 text-amber-600">
+                                    <Star size={11} className="fill-amber-400 stroke-amber-400" />
+                                    {doc.rating.toFixed(1)} ({doc.reviewCount})
+                                  </span>
+                                )}
+                                {doc.consultationFee && (
+                                  <span className="flex items-center gap-1">
+                                    <BadgeDollarSign size={11} /> ₹{doc.consultationFee}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 mt-1.5 flex-wrap text-xs text-slate-400">
+                                <a
+                                  href={`mailto:${doc.email}`}
+                                  onClick={e => e.stopPropagation()}
+                                  className="flex items-center gap-1 hover:text-sky-600 transition-colors"
+                                >
+                                  <Mail size={11} /> {doc.email}
+                                </a>
+                                <a
+                                  href={`tel:${doc.phone}`}
+                                  onClick={e => e.stopPropagation()}
+                                  className="flex items-center gap-1 hover:text-sky-600 transition-colors"
+                                >
+                                  <Phone size={11} /> {doc.phone}
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Booking form */}
+            <div className="lg:col-span-1">
+              <div className="card p-5 sticky top-6">
+                <h2 className="font-semibold text-slate-900 mb-4">Appointment Details</h2>
+
+                {!selectedDoctor ? (
+                  <div className="text-center py-10">
+                    <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                      <ArrowRight size={20} className="text-slate-400" />
+                    </div>
+                    <p className="text-sm text-slate-500">Select a doctor from the list to continue booking.</p>
                   </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Selected doctor */}
+                    <div className="p-3 bg-sky-50 border border-sky-100 rounded-xl flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-sky-500 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">
+                        {selectedDoctor.name[0].toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-sky-900 truncate">Dr. {selectedDoctor.name}</p>
+                        <p className="text-xs text-sky-600">{selectedDoctor.specialization}</p>
+                      </div>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Appointment Type *
-                    </label>
-                    <select
-                      value={appointmentType}
-                      onChange={(e) => setAppointmentType(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    {/* Type selector */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">Consultation type</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setAppointmentType('ONLINE')}
+                          className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                            appointmentType === 'ONLINE'
+                              ? 'border-sky-500 bg-sky-50 text-sky-700'
+                              : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                          }`}
+                        >
+                          <Video size={16} />
+                          Online
+                          <span className="text-[10px] font-normal opacity-70">Video call</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAppointmentType('OFFLINE')}
+                          className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-sm font-medium ${
+                            appointmentType === 'OFFLINE'
+                              ? 'border-slate-700 bg-slate-50 text-slate-800'
+                              : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                          }`}
+                        >
+                          <Building2 size={16} />
+                          In-Person
+                          <span className="text-[10px] font-normal opacity-70">Clinic visit</span>
+                        </button>
+                      </div>
+                      {appointmentType === 'ONLINE' && (
+                        <p className="text-xs text-sky-600 mt-2 flex items-center gap-1">
+                          <Wifi size={11} />
+                          A video call link will be generated once confirmed.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Date */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Date</label>
+                      <div className="relative">
+                        <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="date"
+                          min={today}
+                          value={appointmentDate}
+                          onChange={e => setAppointmentDate(e.target.value)}
+                          required
+                          className="input pl-9 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Time */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Time</label>
+                      <div className="relative">
+                        <Clock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="time"
+                          value={appointmentTime}
+                          onChange={e => setAppointmentTime(e.target.value)}
+                          required
+                          className="input pl-9 text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Reason */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Reason for visit</label>
+                      <textarea
+                        value={reason}
+                        onChange={e => setReason(e.target.value)}
+                        required
+                        rows={3}
+                        placeholder="Briefly describe your symptoms or concern…"
+                        className="input resize-none text-sm"
+                      />
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                        Additional notes <span className="font-normal text-slate-400">(optional)</span>
+                      </label>
+                      <textarea
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        rows={2}
+                        placeholder="Allergies, current medications, etc."
+                        className="input resize-none text-sm"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submitting || success}
+                      className="btn btn-primary w-full justify-center gap-2 disabled:opacity-50"
                     >
-                      {APPOINTMENT_TYPES.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
+                      {submitting ? (
+                        <><Loader2 size={15} className="animate-spin" /> Booking…</>
+                      ) : success ? (
+                        <><CheckCircle2 size={15} /> Booked!</>
+                      ) : (
+                        <>Confirm Booking <ArrowRight size={15} /></>
+                      )}
+                    </button>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reason for Visit *
-                    </label>
-                    <textarea
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      required
-                      rows={3}
-                      placeholder="Brief description of your symptoms or reason for visit"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Additional Notes (Optional)
-                    </label>
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={2}
-                      placeholder="Any additional information..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400 font-medium"
-                  >
-                    {submitting ? 'Booking...' : 'Book Appointment'}
-                  </button>
-
-                  <Link
-                    href="/dashboard"
-                    className="block text-center text-gray-600 hover:text-gray-800 text-sm"
-                  >
-                    Cancel
-                  </Link>
-                </form>
-              ) : (
-                <p className="text-gray-500 text-center py-8 text-sm">
-                  Please select a doctor from the list to continue
-                </p>
-              )}
+                    <Link href="/appointments" className="block text-center text-sm text-slate-500 hover:text-slate-700">
+                      Cancel
+                    </Link>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   )
 }

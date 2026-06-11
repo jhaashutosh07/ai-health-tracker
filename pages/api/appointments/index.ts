@@ -29,6 +29,7 @@ export default async function handler(
             id: true,
             name: true,
             email: true,
+            specialization: true,
           }
         }
       },

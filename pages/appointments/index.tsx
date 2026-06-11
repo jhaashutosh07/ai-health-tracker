@@ -2,13 +2,28 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, Clock, MapPin, User, Plus } from 'lucide-react'
+import {
+  Calendar,
+  Clock,
+  Plus,
+  Video,
+  MapPin,
+  Wifi,
+  User,
+  ClipboardList,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  ArrowRight,
+} from 'lucide-react'
+import AppShell from '@/components/AppShell'
 
 interface Appointment {
   id: string
   type: string
   status: string
-  scheduledDate: string
+  appointmentDate: string
+  appointmentTime: string
   reason: string
   notes: string | null
   doctor: {
@@ -22,246 +37,299 @@ interface Appointment {
   } | null
 }
 
+type FilterTab = 'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
+
+const statusMeta: Record<string, { label: string; cls: string; icon: typeof CheckCircle2 }> = {
+  PENDING:   { label: 'Pending',   cls: 'badge-pending',   icon: Clock },
+  CONFIRMED: { label: 'Confirmed', cls: 'badge-confirmed', icon: CheckCircle2 },
+  COMPLETED: { label: 'Completed', cls: 'badge-completed', icon: CheckCircle2 },
+  CANCELLED: { label: 'Cancelled', cls: 'badge-cancelled', icon: XCircle },
+}
+
+const severityMeta: Record<string, { cls: string }> = {
+  LOW:      { cls: 'badge-low' },
+  MEDIUM:   { cls: 'badge-medium' },
+  HIGH:     { cls: 'badge-high' },
+  CRITICAL: { cls: 'badge-critical' },
+}
+
+function getVideoCallUrl(appointmentId: string) {
+  return `https://meet.jit.si/HealthAI-${appointmentId.slice(0, 12)}`
+}
+
 export default function Appointments() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'>('ALL')
+  const [filter, setFilter] = useState<FilterTab>('ALL')
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/api/auth/signin')
-    } else if (session) {
-      fetchAppointments()
-    }
-  }, [session, status, router])
+    if (status === 'unauthenticated') router.push('/api/auth/signin')
+    else if (session) fetchAppointments()
+  }, [session, status])
 
   const fetchAppointments = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/appointments')
-      if (response.ok) {
-        const data = await response.json()
+      const res = await fetch('/api/appointments')
+      if (res.ok) {
+        const data = await res.json()
         setAppointments(data.appointments || [])
       }
-    } catch (error) {
-      console.error('Error fetching appointments:', error)
+    } catch (e) {
+      console.error(e)
     } finally {
       setLoading(false)
     }
   }
 
+  const countFor = (s: string) => s === 'ALL'
+    ? appointments.length
+    : appointments.filter(a => a.status === s).length
+
+  const filtered = filter === 'ALL'
+    ? appointments
+    : appointments.filter(a => a.status === filter)
+
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading appointments...</p>
+      <AppShell title="Appointments">
+        <div className="flex items-center justify-center h-64">
+          <div className="flex items-center gap-3 text-slate-400">
+            <div className="w-5 h-5 rounded-full border-2 border-sky-500/40 border-t-sky-500 animate-spin" />
+            Loading appointments…
+          </div>
         </div>
-      </div>
+      </AppShell>
     )
   }
 
-  const filteredAppointments = filter === 'ALL'
-    ? appointments
-    : appointments.filter(apt => apt.status === filter)
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'COMPLETED':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'CRITICAL':
-        return 'bg-red-100 text-red-800'
-      case 'HIGH':
-        return 'bg-orange-100 text-orange-800'
-      case 'MEDIUM':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'LOW':
-        return 'bg-green-100 text-green-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/dashboard"
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft className="h-6 w-6" />
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">My Appointments</h1>
-            </div>
-            <Link
-              href="/appointments/new"
-              className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+    <AppShell
+      title="Appointments"
+      breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Appointments' }]}
+    >
+      <div className="p-6 lg:p-8 space-y-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">My Appointments</h1>
+            <p className="text-slate-500 text-sm mt-1">
+              {appointments.filter(a => a.status === 'CONFIRMED' || a.status === 'PENDING').length} active appointments
+            </p>
+          </div>
+          <Link href="/appointments/new" className="btn btn-primary gap-2 flex-shrink-0">
+            <Plus size={15} />
+            Book Appointment
+          </Link>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="card p-1 flex flex-wrap gap-1">
+          {(['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'] as FilterTab[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setFilter(tab)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                filter === tab
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
             >
-              <Plus className="h-5 w-5" />
-              <span>New Appointment</span>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Filter Tabs */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="flex flex-wrap border-b">
-            {['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status as typeof filter)}
-                className={`px-6 py-3 font-medium transition-colors ${
-                  filter === status
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {status}
-                <span className="ml-2 text-sm">
-                  ({status === 'ALL'
-                    ? appointments.length
-                    : appointments.filter(apt => apt.status === status).length})
-                </span>
-              </button>
-            ))}
-          </div>
+              {tab} ({countFor(tab)})
+            </button>
+          ))}
         </div>
 
-        {/* Appointments List */}
-        {filteredAppointments.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No appointments found
-            </h3>
-            <p className="text-gray-600 mb-6">
+        {/* List */}
+        {filtered.length === 0 ? (
+          <div className="card flex flex-col items-center justify-center py-16 text-center">
+            <Calendar size={36} className="text-slate-200 mb-4" />
+            <p className="font-semibold text-slate-700 mb-1">No appointments found</p>
+            <p className="text-slate-500 text-sm mb-6">
               {filter === 'ALL'
                 ? "You haven't booked any appointments yet."
-                : `You don't have any ${filter.toLowerCase()} appointments.`}
+                : `No ${filter.toLowerCase()} appointments.`}
             </p>
-            <Link
-              href="/appointments/new"
-              className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              <Plus className="h-5 w-5" />
-              <span>Book Your First Appointment</span>
+            <Link href="/appointments/new" className="btn btn-primary gap-2">
+              <Plus size={15} />
+              Book your first appointment
             </Link>
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredAppointments.map((appointment) => (
-              <div key={appointment.id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow">
-                <div className="p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-xl font-semibold text-gray-900">
-                          {appointment.doctor?.name || 'Doctor Not Assigned'}
-                        </h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(appointment.status)}`}>
-                          {appointment.status}
-                        </span>
+            {filtered.map(apt => {
+              const sMeta = statusMeta[apt.status] || statusMeta.PENDING
+              const StatusIcon = sMeta.icon
+              const sevMeta = apt.symptomLog ? (severityMeta[apt.symptomLog.severity] || severityMeta.LOW) : null
+              const isOnline = apt.type === 'ONLINE'
+              const canJoinCall = isOnline && apt.status === 'CONFIRMED'
+              const dateObj = new Date(apt.appointmentDate)
+              const dateStr = dateObj.toLocaleDateString('en-IN', {
+                weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+              })
+              let symptoms: string[] = []
+              try { symptoms = JSON.parse(apt.symptomLog?.symptoms || '[]') } catch {
+                symptoms = apt.symptomLog ? [apt.symptomLog.symptoms] : []
+              }
+
+              return (
+                <div
+                  key={apt.id}
+                  className={`card overflow-hidden transition-all hover:shadow-md ${
+                    canJoinCall ? 'border-sky-200' : ''
+                  }`}
+                >
+                  {/* Top bar for online + confirmed */}
+                  {canJoinCall && (
+                    <div className="bg-sky-600 px-5 py-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-white text-xs font-medium">
+                        <Wifi size={13} />
+                        Online consultation ready — your doctor can start the call
                       </div>
-                      {appointment.doctor && (
-                        <p className="text-gray-600 mb-1">
-                          {appointment.doctor.specialization}
-                        </p>
+                      <a
+                        href={getVideoCallUrl(apt.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 bg-white text-sky-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-sky-50 transition-colors"
+                      >
+                        <Video size={12} />
+                        Join Video Call
+                      </a>
+                    </div>
+                  )}
+
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      {/* Doctor info */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center flex-shrink-0">
+                          {apt.doctor ? apt.doctor.name[0].toUpperCase() : <User size={18} />}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {apt.doctor ? `Dr. ${apt.doctor.name}` : 'Doctor TBD'}
+                          </p>
+                          <p className="text-xs text-slate-500">{apt.doctor?.specialization || 'Awaiting assignment'}</p>
+                        </div>
+                      </div>
+
+                      {/* Badges */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`badge ${sMeta.cls} gap-1`}>
+                          <StatusIcon size={10} />
+                          {sMeta.label}
+                        </span>
+                        <span className={`badge flex items-center gap-1 ${isOnline ? 'bg-sky-50 text-sky-700 border-sky-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                          {isOnline ? <Wifi size={10} /> : <MapPin size={10} />}
+                          {isOnline ? 'Online' : 'In-Person'}
+                        </span>
+                        {sevMeta && (
+                          <span className={`badge ${sevMeta.cls}`}>
+                            {apt.symptomLog?.severity}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Date and time */}
+                    <div className="mt-4 flex items-center gap-5 flex-wrap text-sm text-slate-600">
+                      <span className="flex items-center gap-1.5">
+                        <Calendar size={14} className="text-slate-400" />
+                        {dateStr}
+                      </span>
+                      {apt.appointmentTime && (
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={14} className="text-slate-400" />
+                          {apt.appointmentTime}
+                        </span>
                       )}
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-center text-gray-600 mb-1">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        <span>
-                          {new Date(appointment.scheduledDate).toLocaleDateString('en-US', {
-                            weekday: 'short',
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </span>
-                      </div>
-                      <div className="flex items-center text-gray-600">
-                        <Clock className="h-4 w-4 mr-2" />
-                        <span>
-                          {new Date(appointment.scheduledDate).toLocaleTimeString('en-US', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </div>
+
+                    {/* Reason */}
+                    <div className="mt-3 p-3 bg-slate-50 rounded-xl">
+                      <p className="text-xs font-semibold text-slate-500 mb-1">Reason for visit</p>
+                      <p className="text-sm text-slate-700">{apt.reason}</p>
                     </div>
+
+                    {/* Symptoms */}
+                    {symptoms.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {symptoms.slice(0, 5).map((s, i) => (
+                          <span key={i} className="px-2.5 py-1 bg-white border border-slate-200 rounded-full text-xs text-slate-600">{s}</span>
+                        ))}
+                        {symptoms.length > 5 && (
+                          <span className="px-2.5 py-1 text-xs text-slate-400">+{symptoms.length - 5} more</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Doctor notes */}
+                    {apt.notes && (
+                      <div className="mt-3 p-3 bg-sky-50 border border-sky-100 rounded-xl">
+                        <p className="text-xs font-semibold text-sky-700 mb-1">Doctor's notes</p>
+                        <p className="text-sm text-slate-700">{apt.notes}</p>
+                      </div>
+                    )}
+
+                    {/* If online and pending — info about how to join */}
+                    {isOnline && apt.status === 'PENDING' && (
+                      <div className="mt-3 flex items-start gap-2.5 p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                        <AlertCircle size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-800">
+                          Your doctor will confirm this appointment. Once confirmed, a video call link will appear here.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Bottom actions */}
+                    {apt.status !== 'COMPLETED' && apt.status !== 'CANCELLED' && (
+                      <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3">
+                        {canJoinCall && (
+                          <a
+                            href={getVideoCallUrl(apt.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary gap-2 text-sm"
+                          >
+                            <Video size={14} />
+                            Join Video Call
+                          </a>
+                        )}
+                        {apt.symptomLog && (
+                          <Link href="/symptom-check" className="btn btn-ghost gap-1.5 text-xs">
+                            <ClipboardList size={13} />
+                            View Symptom Log
+                          </Link>
+                        )}
+                        <Link href="/appointments/new" className="ml-auto btn btn-outline gap-1.5 text-xs">
+                          <Plus size={13} />
+                          Book Another
+                        </Link>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-1">Type:</p>
-                      <div className="flex items-center text-gray-600">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        <span className="capitalize">{appointment.type.toLowerCase()}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-700 mb-1">Reason:</p>
-                      <p className="text-gray-600">{appointment.reason}</p>
-                    </div>
-                  </div>
-
-                  {appointment.symptomLog && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-medium text-gray-700">Related Symptoms:</p>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${getSeverityColor(appointment.symptomLog.severity)}`}>
-                          {appointment.symptomLog.severity}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600">{appointment.symptomLog.symptoms}</p>
-                    </div>
-                  )}
-
-                  {appointment.notes && (
-                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                      <p className="text-sm font-medium text-gray-700 mb-1">Notes:</p>
-                      <p className="text-sm text-gray-600">{appointment.notes}</p>
-                    </div>
-                  )}
-
-                  {appointment.doctor && (
-                    <div className="mt-4 pt-4 border-t flex items-center justify-between">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <User className="h-4 w-4 mr-2" />
-                        <span>{appointment.doctor.email}</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
-      </main>
-    </div>
+
+        {/* Quick tip */}
+        {appointments.some(a => a.type === 'ONLINE' && a.status === 'CONFIRMED') && (
+          <div className="card p-4 bg-sky-50 border-sky-100 flex items-start gap-3">
+            <Video size={16} className="text-sky-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-sky-900">Video consultation tip</p>
+              <p className="text-xs text-sky-700 mt-0.5">
+                For the best experience, use Chrome or Firefox. Allow camera and microphone access when prompted. Make sure you're in a quiet, well-lit space.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </AppShell>
   )
 }
