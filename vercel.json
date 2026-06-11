@@ -5,5 +5,12 @@
       "path": "/api/cron/weekly-digest",
       "schedule": "0 9 * * 1"
     }
-  ]
+  ],
+  "functions": {
+    "pages/api/symptom-check/chat.ts": { "maxDuration": 60 },
+    "pages/api/symptom-check/analyze-image.ts": { "maxDuration": 60 },
+    "pages/api/medicine-checker.ts": { "maxDuration": 60 },
+    "pages/api/mood-insights.ts": { "maxDuration": 60 },
+    "pages/api/medical-records/ocr.ts": { "maxDuration": 60 }
+  }
 }
