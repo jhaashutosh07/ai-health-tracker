@@ -1,24 +1,5 @@
 {
-  "buildCommand": "prisma generate && prisma migrate deploy && next build",
-  "env": {
-    "DATABASE_URL": "@postgres_url",
-    "DIRECT_URL": "@postgres_url_non_pooling",
-    "NEXTAUTH_URL": "@nextauth_url",
-    "NEXTAUTH_SECRET": "@nextauth_secret",
-    "GOOGLE_CLIENT_ID": "@google_client_id",
-    "GOOGLE_CLIENT_SECRET": "@google_client_secret",
-    "ANTHROPIC_API_KEY": "@anthropic_api_key",
-    "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": "@google_maps_api_key",
-    "PUSHER_APP_ID": "@pusher_app_id",
-    "PUSHER_KEY": "@pusher_key",
-    "PUSHER_SECRET": "@pusher_secret",
-    "PUSHER_CLUSTER": "@pusher_cluster",
-    "NEXT_PUBLIC_PUSHER_KEY": "@pusher_key",
-    "NEXT_PUBLIC_PUSHER_CLUSTER": "@pusher_cluster",
-    "CRON_SECRET": "@cron_secret",
-    "EMAIL_FROM": "@email_from",
-    "EMAIL_PASSWORD": "@email_password"
-  },
+  "buildCommand": "prisma generate && next build",
   "crons": [
     {
       "path": "/api/cron/weekly-digest",
