@@ -1,20 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api'
 import Link from 'next/link'
+import {
+  MapPin, Phone, Star, Clock, Search, SlidersHorizontal,
+  Calendar, Stethoscope, Navigation, ChevronRight, Loader2,
+} from 'lucide-react'
+import AppShell from '@/components/AppShell'
 
 interface Doctor {
   id: string
   name: string
   specialization: string
-  email: string
   phone: string
   experience: number
   location: string
   address: string | null
-  latitude: number | null
-  longitude: number | null
   city: string | null
   rating: number | null
   reviewCount: number
@@ -31,8 +32,18 @@ const SPECIALIZATIONS = [
   'Orthopedic',
   'Pediatrician',
   'Psychiatrist',
-  'ENT Specialist'
+  'ENT Specialist',
+  'Gynecologist',
+  'Ophthalmologist',
+  'General Physician',
 ]
+
+const severityColor = (rating: number | null) => {
+  if (!rating) return 'text-slate-400'
+  if (rating >= 4.5) return 'text-emerald-600'
+  if (rating >= 3.5) return 'text-amber-500'
+  return 'text-red-500'
+}
 
 export default function FindDoctors() {
   const { data: session, status } = useSession()
@@ -41,320 +52,285 @@ export default function FindDoctors() {
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(false)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
+  const [locating, setLocating] = useState(false)
   const [radius, setRadius] = useState(10)
   const [specialization, setSpecialization] = useState('')
-  const [mapCenter, setMapCenter] = useState({ lat: 40.7128, lng: -74.0060 }) // Default: New York
+  const [search, setSearch] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
 
-  // Get user's current location
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          }
-          setUserLocation(location)
-          setMapCenter(location)
-        },
-        (error) => {
-          console.error('Error getting location:', error)
-          alert('Please enable location services to find nearby doctors')
-        }
-      )
-    }
+    if (status === 'unauthenticated') router.push('/api/auth/signin')
+  }, [status, router])
+
+  const detectLocation = useCallback(() => {
+    if (!navigator.geolocation) return
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude })
+        setLocating(false)
+      },
+      () => setLocating(false),
+      { timeout: 8000 }
+    )
   }, [])
 
-  // Fetch nearby doctors when location or filters change
+  useEffect(() => { detectLocation() }, [detectLocation])
+
   useEffect(() => {
-    if (userLocation) {
-      fetchNearbyDoctors()
-    }
+    if (userLocation) fetchDoctors()
   }, [userLocation, radius, specialization])
 
-  const fetchNearbyDoctors = async () => {
+  const fetchDoctors = async () => {
     if (!userLocation) return
-
     setLoading(true)
     try {
       const params = new URLSearchParams({
         latitude: userLocation.lat.toString(),
         longitude: userLocation.lng.toString(),
         radius: radius.toString(),
-        ...(specialization && { specialization })
+        ...(specialization && { specialization }),
       })
-
-      const response = await fetch(`/api/doctors/nearby?${params}`)
-      const data = await response.json()
-
-      if (response.ok) {
-        setDoctors(data.doctors)
-      } else {
-        console.error('Failed to fetch doctors')
-      }
-    } catch (error) {
-      console.error('Error fetching doctors:', error)
+      const res = await fetch(`/api/doctors/nearby?${params}`)
+      const data = await res.json()
+      if (res.ok) setDoctors(data.doctors || [])
+    } catch {
+      /* noop */
     } finally {
       setLoading(false)
     }
   }
 
-  if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+  const filtered = search.trim()
+    ? doctors.filter(d =>
+        d.name.toLowerCase().includes(search.toLowerCase()) ||
+        d.specialization.toLowerCase().includes(search.toLowerCase()) ||
+        (d.city || '').toLowerCase().includes(search.toLowerCase())
+      )
+    : doctors
+
+  const openInMaps = (d: Doctor) => {
+    if (d.address) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.address)}`, '_blank', 'noopener')
+    } else if (userLocation) {
+      window.open(`https://www.google.com/maps/search/doctor+near+me/@${userLocation.lat},${userLocation.lng},14z`, '_blank', 'noopener')
+    }
   }
 
-  if (!session) {
-    router.push('/auth/signin')
-    return null
+  if (status === 'loading') {
+    return (
+      <AppShell title="Find Doctors">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-5 h-5 rounded-full border-2 border-sky-500/40 border-t-sky-500 animate-spin" />
+        </div>
+      </AppShell>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Find Nearby Doctors</h1>
-          <p className="mt-2 text-gray-600">Discover healthcare professionals near you</p>
+    <AppShell
+      title="Find Doctors"
+      breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Find Doctors' }]}
+    >
+      <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-5">
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Find Nearby Doctors</h1>
+            <p className="text-slate-500 text-sm mt-1">
+              {userLocation
+                ? `Showing doctors within ${radius} km of your location`
+                : 'Enable location to find doctors near you'}
+            </p>
+          </div>
+          {!userLocation && (
+            <button
+              onClick={detectLocation}
+              disabled={locating}
+              className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all disabled:opacity-60"
+            >
+              {locating ? <Loader2 size={14} className="animate-spin" /> : <Navigation size={14} />}
+              {locating ? 'Locating…' : 'Use My Location'}
+            </button>
+          )}
         </div>
 
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search Radius (km)
-              </label>
+        {/* Search + Filters bar */}
+        <div className="card p-4 space-y-4">
+          <div className="flex gap-3">
+            <div className="flex-1 relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
-                type="range"
-                min="1"
-                max="50"
-                value={radius}
-                onChange={(e) => setRadius(parseInt(e.target.value))}
-                className="w-full"
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name, specialty, or city…"
+                className="input pl-9 text-sm w-full"
               />
-              <div className="text-center text-sm text-gray-600 mt-1">{radius} km</div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Specialization
-              </label>
-              <select
-                value={specialization}
-                onChange={(e) => setSpecialization(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Specializations</option>
-                {SPECIALIZATIONS.map(spec => (
-                  <option key={spec} value={spec}>{spec}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-end">
-              <button
-                onClick={fetchNearbyDoctors}
-                disabled={loading || !userLocation}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
-              >
-                {loading ? 'Searching...' : 'Search'}
-              </button>
-            </div>
+            <button
+              onClick={() => setShowFilters(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${showFilters ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-600 border-slate-200 hover:border-sky-300'}`}
+            >
+              <SlidersHorizontal size={14} />
+              Filters
+            </button>
+            <button
+              onClick={fetchDoctors}
+              disabled={loading || !userLocation}
+              className="btn btn-primary text-sm disabled:opacity-50"
+            >
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+              Search
+            </button>
           </div>
 
-          {!userLocation && (
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-800">
-                Detecting your location... Please allow location access to find nearby doctors.
-              </p>
+          {showFilters && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Specialization</label>
+                <select
+                  value={specialization}
+                  onChange={e => setSpecialization(e.target.value)}
+                  className="input text-sm w-full"
+                >
+                  <option value="">All Specializations</option>
+                  {SPECIALIZATIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Radius — <span className="text-sky-600 font-bold">{radius} km</span>
+                </label>
+                <input
+                  type="range" min="1" max="50" value={radius}
+                  onChange={e => setRadius(parseInt(e.target.value))}
+                  className="w-full accent-sky-600"
+                />
+                <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                  <span>1 km</span><span>25 km</span><span>50 km</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Map */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">Map View</h2>
-            <div className="h-96 rounded-lg overflow-hidden">
-              {process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY === 'your-google-maps-api-key-here' ? (
-                <div className="h-full flex items-center justify-center bg-gray-100 text-gray-500">
-                  <div className="text-center p-6">
-                    <p className="font-semibold mb-2">Google Maps API Key Required</p>
-                    <p className="text-sm">Please add your Google Maps API key to .env file</p>
-                    <code className="text-xs bg-gray-200 px-2 py-1 rounded mt-2 inline-block">
-                      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-key
-                    </code>
+        {/* Location missing */}
+        {!userLocation && !locating && (
+          <div className="card bg-amber-50 border-amber-100 p-4 flex items-start gap-3">
+            <Navigation size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Location not detected</p>
+              <p className="text-xs text-amber-700 mt-0.5">Please allow location access in your browser to find doctors near you.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-slate-700">
+              {loading ? 'Searching…' : `${filtered.length} doctor${filtered.length !== 1 ? 's' : ''} found`}
+              {specialization && <span className="ml-2 text-xs text-sky-600 font-medium">· {specialization}</span>}
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="card flex items-center justify-center py-20 gap-3">
+              <Loader2 size={22} className="text-sky-500 animate-spin" />
+              <span className="text-slate-400 text-sm">Finding doctors near you…</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="card flex flex-col items-center justify-center py-16 text-center">
+              <Stethoscope size={36} className="text-slate-200 mb-3" />
+              <p className="text-slate-500 font-medium mb-1">No doctors found</p>
+              <p className="text-xs text-slate-400">Try increasing the radius or changing the specialization filter.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filtered.map(doctor => (
+                <div key={doctor.id} className="card p-5 hover:shadow-md transition-all group">
+                  {/* Top row */}
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-12 h-12 rounded-2xl bg-sky-100 flex items-center justify-center flex-shrink-0 text-sky-700 font-bold text-lg">
+                      {doctor.name[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-900 truncate">{doctor.name}</p>
+                      <p className="text-xs text-sky-600 font-medium">{doctor.specialization}</p>
+                      {(doctor.city || doctor.location) && (
+                        <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                          <MapPin size={10} className="flex-shrink-0" />
+                          {doctor.city || doctor.location}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {doctor.rating ? (
+                        <div className={`flex items-center gap-0.5 justify-end font-bold text-sm ${severityColor(doctor.rating)}`}>
+                          <Star size={13} fill="currentColor" />
+                          {doctor.rating.toFixed(1)}
+                        </div>
+                      ) : null}
+                      {doctor.reviewCount > 0 && (
+                        <p className="text-[10px] text-slate-400 mt-0.5">{doctor.reviewCount} reviews</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Info pills */}
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <span className="flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
+                      <Clock size={11} />
+                      {doctor.experience} yrs exp
+                    </span>
+                    <span className="flex items-center gap-1 text-xs bg-sky-50 text-sky-600 font-medium px-2.5 py-1 rounded-full">
+                      <MapPin size={11} />
+                      {doctor.distanceText} away
+                    </span>
+                    {doctor.consultationFee != null && (
+                      <span className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">
+                        ₹{doctor.consultationFee} fee
+                      </span>
+                    )}
+                  </div>
+
+                  {doctor.address && (
+                    <p className="text-xs text-slate-400 mb-4 line-clamp-1 flex items-start gap-1">
+                      <MapPin size={10} className="flex-shrink-0 mt-0.5" />
+                      {doctor.address}
+                    </p>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/appointments/new?doctorId=${doctor.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-2.5 rounded-xl transition-all"
+                    >
+                      <Calendar size={13} /> Book
+                    </Link>
+                    <a
+                      href={`tel:${doctor.phone}`}
+                      className="flex items-center justify-center gap-1.5 border border-slate-200 hover:border-sky-300 text-slate-600 hover:text-sky-600 text-xs font-medium px-4 py-2.5 rounded-xl transition-all"
+                    >
+                      <Phone size={13} /> Call
+                    </a>
+                    <button
+                      onClick={() => openInMaps(doctor)}
+                      className="flex items-center justify-center gap-1.5 border border-slate-200 hover:border-slate-300 text-slate-600 text-xs font-medium px-4 py-2.5 rounded-xl transition-all"
+                      title="Open in Google Maps"
+                    >
+                      <MapPin size={13} />
+                    </button>
                   </div>
                 </div>
-              ) : (
-                <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}>
-                  <GoogleMap
-                    mapContainerStyle={{ width: '100%', height: '100%' }}
-                    center={mapCenter}
-                    zoom={12}
-                  >
-                    {/* User location marker */}
-                    {userLocation && (
-                      <Marker
-                        position={userLocation}
-                        icon={{
-                          url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-                        }}
-                        title="Your Location"
-                      />
-                    )}
-
-                    {/* Doctor markers */}
-                    {doctors.map((doctor) => (
-                      doctor.latitude && doctor.longitude && (
-                        <Marker
-                          key={doctor.id}
-                          position={{ lat: doctor.latitude, lng: doctor.longitude }}
-                          title={doctor.name}
-                          onClick={() => setSelectedDoctor(doctor)}
-                          icon={{
-                            url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
-                          }}
-                        />
-                      )
-                    ))}
-
-                    {/* Info window for selected doctor */}
-                    {selectedDoctor && selectedDoctor.latitude && selectedDoctor.longitude && (
-                      <InfoWindow
-                        position={{ lat: selectedDoctor.latitude, lng: selectedDoctor.longitude }}
-                        onCloseClick={() => setSelectedDoctor(null)}
-                      >
-                        <div className="p-2 max-w-xs">
-                          <h3 className="font-semibold">{selectedDoctor.name}</h3>
-                          <p className="text-sm text-gray-600">{selectedDoctor.specialization}</p>
-                          <p className="text-sm text-gray-600">{selectedDoctor.distanceText} away</p>
-                          <div className="mt-2 space-y-1">
-                            <p className="text-xs text-gray-600 flex items-center">
-                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                              </svg>
-                              {selectedDoctor.phone}
-                            </p>
-                            <p className="text-xs text-gray-600 flex items-center">
-                              <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                              </svg>
-                              {selectedDoctor.email}
-                            </p>
-                          </div>
-                          <Link
-                            href={`/appointments/new?doctorId=${selectedDoctor.id}`}
-                            className="inline-block mt-2 text-blue-600 text-sm hover:underline font-medium"
-                          >
-                            Book Appointment →
-                          </Link>
-                        </div>
-                      </InfoWindow>
-                    )}
-                  </GoogleMap>
-                </LoadScript>
-              )}
+              ))}
             </div>
-          </div>
-
-          {/* Doctors List */}
-          <div className="bg-white p-4 rounded-lg shadow">
-            <h2 className="text-xl font-semibold mb-4">
-              Nearby Doctors ({doctors.length})
-            </h2>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {loading ? (
-                <p className="text-gray-500 text-center py-8">Loading doctors...</p>
-              ) : doctors.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">
-                  No doctors found in your area. Try increasing the search radius.
-                </p>
-              ) : (
-                doctors.map((doctor) => (
-                  <div
-                    key={doctor.id}
-                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => setSelectedDoctor(doctor)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{doctor.name}</h3>
-                        <p className="text-sm text-gray-600">{doctor.specialization}</p>
-                        <p className="text-sm text-gray-500 mt-1">{doctor.location}</p>
-                        {doctor.address && (
-                          <p className="text-xs text-gray-500">{doctor.address}</p>
-                        )}
-
-                        {/* Contact Details */}
-                        <div className="mt-2 space-y-1">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            <a href={`mailto:${doctor.email}`} className="hover:text-blue-600 hover:underline truncate">
-                              {doctor.email}
-                            </a>
-                          </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                            </svg>
-                            <a href={`tel:${doctor.phone}`} className="hover:text-blue-600 hover:underline">
-                              {doctor.phone}
-                            </a>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center mt-2 space-x-4 text-sm">
-                          <span className="text-gray-600">
-                            {doctor.experience} years exp
-                          </span>
-                          <span className="text-blue-600 font-semibold">
-                            {doctor.distanceText} away
-                          </span>
-                          {doctor.rating && (
-                            <span className="text-yellow-600">
-                              ⭐ {doctor.rating.toFixed(1)} ({doctor.reviewCount})
-                            </span>
-                          )}
-                        </div>
-                        {doctor.consultationFee && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            Fee: ${doctor.consultationFee}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex space-x-2">
-                      <Link
-                        href={`/appointments/new?doctorId=${doctor.id}`}
-                        className="flex-1 px-4 py-2 bg-blue-600 text-white text-center rounded-md hover:bg-blue-700 text-sm"
-                      >
-                        Book Appointment
-                      </Link>
-                      <a
-                        href={`tel:${doctor.phone}`}
-                        className="px-4 py-2 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 text-sm"
-                        title="Call doctor"
-                      >
-                        Call
-                      </a>
-                      <a
-                        href={`mailto:${doctor.email}`}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"
-                        title="Email doctor"
-                      >
-                        Email
-                      </a>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          )}
         </div>
       </div>
-    </div>
+    </AppShell>
   )
 }

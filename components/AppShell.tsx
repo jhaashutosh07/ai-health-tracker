@@ -30,17 +30,19 @@ import {
   Stethoscope,
   Droplets,
   Share2,
+  TrendingUp,
 } from 'lucide-react'
 
 const patientNav = [
-  { label: 'Dashboard',         href: '/dashboard',         icon: Activity },
-  { label: 'Symptom Check',     href: '/symptom-check',     icon: ClipboardList },
-  { label: 'Medicine Checker',  href: '/medicine-checker',  icon: Pill },
-  { label: 'Mood Tracker',      href: '/mood-tracker',      icon: Smile },
-  { label: 'Appointments',      href: '/appointments',      icon: Calendar },
-  { label: 'Find Doctors',      href: '/find-doctors',      icon: Users },
-  { label: 'Medical Records',   href: '/medical-records',   icon: FileText },
-  { label: 'Analytics',         href: '/analytics',         icon: BarChart2 },
+  { label: 'Dashboard',         href: '/dashboard',          icon: Activity },
+  { label: 'Symptom Check',     href: '/symptom-check',      icon: ClipboardList },
+  { label: 'Health Patterns',   href: '/symptom-patterns',   icon: TrendingUp },
+  { label: 'Medicine Checker',  href: '/medicine-checker',   icon: Pill },
+  { label: 'Mood Tracker',      href: '/mood-tracker',       icon: Smile },
+  { label: 'Appointments',      href: '/appointments',       icon: Calendar },
+  { label: 'Find Doctors',      href: '/find-doctors',       icon: Users },
+  { label: 'Medical Records',   href: '/medical-records',    icon: FileText },
+  { label: 'Analytics',         href: '/analytics',          icon: BarChart2 },
 ]
 
 const doctorNav = [
