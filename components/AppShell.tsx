@@ -31,23 +31,26 @@ import {
   Droplets,
   Share2,
   TrendingUp,
+  Languages,
 } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { LANGUAGES } from '@/lib/i18n/translations'
 
-const patientNav = [
-  { label: 'Dashboard',         href: '/dashboard',          icon: Activity },
-  { label: 'Symptom Check',     href: '/symptom-check',      icon: ClipboardList },
-  { label: 'Health Patterns',   href: '/symptom-patterns',   icon: TrendingUp },
-  { label: 'Medicine Checker',  href: '/medicine-checker',   icon: Pill },
-  { label: 'Mood Tracker',      href: '/mood-tracker',       icon: Smile },
-  { label: 'Appointments',      href: '/appointments',       icon: Calendar },
-  { label: 'Find Doctors',      href: '/find-doctors',       icon: Users },
-  { label: 'Medical Records',   href: '/medical-records',    icon: FileText },
-  { label: 'Analytics',         href: '/analytics',          icon: BarChart2 },
+const patientNavKeys = [
+  { key: 'nav.dashboard',       href: '/dashboard',          icon: Activity },
+  { key: 'nav.symptomCheck',    href: '/symptom-check',      icon: ClipboardList },
+  { key: 'nav.healthPatterns',  href: '/symptom-patterns',   icon: TrendingUp },
+  { key: 'nav.medicineChecker', href: '/medicine-checker',   icon: Pill },
+  { key: 'nav.moodTracker',     href: '/mood-tracker',       icon: Smile },
+  { key: 'nav.appointments',    href: '/appointments',       icon: Calendar },
+  { key: 'nav.findDoctors',     href: '/find-doctors',       icon: Users },
+  { key: 'nav.medicalRecords',  href: '/medical-records',    icon: FileText },
+  { key: 'nav.analytics',       href: '/analytics',          icon: BarChart2 },
 ]
 
-const doctorNav = [
-  { label: 'Dashboard',    href: '/doctors/dashboard', icon: Activity },
-  { label: 'Appointments', href: '/doctors/dashboard', icon: Calendar },
+const doctorNavKeys = [
+  { key: 'nav.dashboard',    href: '/doctors/dashboard', icon: Activity },
+  { key: 'nav.appointments', href: '/doctors/dashboard', icon: Calendar },
 ]
 
 const quickDial = [
@@ -76,8 +79,10 @@ interface AppShellProps {
 export default function AppShell({ children, title, breadcrumb }: AppShellProps) {
   const { data: session } = useSession()
   const router = useRouter()
+  const { lang, setLang, t } = useLanguage()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sosOpen, setSosOpen] = useState(false)
+  const [langOpen, setLangOpen] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
 
   const [locatingFor, setLocatingFor] = useState<string | null>(null)
@@ -116,7 +121,7 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
   }, [])
 
   const isDoctor = session?.user?.role === 'DOCTOR'
-  const nav = isDoctor ? doctorNav : patientNav
+  const navKeys = isDoctor ? doctorNavKeys : patientNavKeys
   const currentPath = router.pathname
 
   const Sidebar = () => (
@@ -134,17 +139,17 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-thin">
-        {nav.map(({ label, href, icon: Icon }) => {
+        {navKeys.map(({ key, href, icon: Icon }) => {
           const active = currentPath === href
           return (
             <Link
-              key={href + label}
+              key={href + key}
               href={href}
               className={`nav-item ${active ? 'nav-item-active' : ''}`}
               onClick={() => setSidebarOpen(false)}
             >
               <Icon size={17} />
-              {label}
+              {t(key)}
               {active && <ChevronRight size={14} className="ml-auto opacity-60" />}
             </Link>
           )
@@ -158,7 +163,7 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
               onClick={() => setSidebarOpen(false)}
             >
               <Settings size={17} />
-              Settings
+              {t('nav.settings')}
             </Link>
             <Link
               href={`/emergency/${session?.user?.id}`}
@@ -167,7 +172,7 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
               className="nav-item"
             >
               <ShieldAlert size={17} />
-              Emergency Card
+              {t('nav.emergencyCard')}
             </Link>
           </div>
         )}
@@ -251,6 +256,39 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* Language Switcher */}
+            <div className="relative">
+              <button
+                onClick={() => setLangOpen(v => !v)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-all text-xs font-semibold border border-slate-200"
+                title="Change language"
+              >
+                <Languages size={14} />
+                <span>{LANGUAGES.find(l => l.code === lang)?.nativeName || 'EN'}</span>
+              </button>
+              {langOpen && (
+                <div className="absolute right-0 top-9 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden w-44">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 pt-3 pb-1">Language</p>
+                  {LANGUAGES.map(l => (
+                    <button
+                      key={l.code}
+                      onClick={() => { setLang(l.code); setLangOpen(false) }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors text-left ${
+                        lang === l.code ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="text-base">{l.flag}</span>
+                      <div>
+                        <p className="text-xs font-semibold leading-none">{l.nativeName}</p>
+                        <p className="text-[10px] text-slate-400 leading-none mt-0.5">{l.name}</p>
+                      </div>
+                      {lang === l.code && <span className="ml-auto text-sky-500 text-xs">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all">
               <Bell size={18} />
             </button>
@@ -276,8 +314,8 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
           <Phone size={18} className="group-hover:animate-pulse" />
         </div>
         <div>
-          <p className="text-xs font-extrabold leading-none tracking-wide">SOS</p>
-          <p className="text-[10px] font-medium leading-none opacity-80 mt-0.5">Emergency</p>
+          <p className="text-xs font-extrabold leading-none tracking-wide">{t('emergency.sos')}</p>
+          <p className="text-[10px] font-medium leading-none opacity-80 mt-0.5">{t('emergency.sosLabel')}</p>
         </div>
       </button>
 

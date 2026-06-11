@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Loader2, Mic, MicOff, ImagePlus } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 declare global {
   interface Window {
@@ -33,7 +34,12 @@ interface SymptomChatProps {
   initialMessage?: string
 }
 
+const SPEECH_LANG: Record<string, string> = {
+  en: 'en-IN', hi: 'hi-IN', bn: 'bn-IN', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN',
+}
+
 export default function SymptomChat({ onAssessmentComplete, initialMessage }: SymptomChatProps) {
+  const { lang } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
@@ -66,7 +72,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
       const response = await fetch('/api/symptom-check/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updatedMessages }),
+        body: JSON.stringify({ messages: updatedMessages, lang }),
       })
 
       const data = await response.json()
@@ -112,7 +118,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
     const recognition = new SpeechRecognition()
     recognition.continuous = false
     recognition.interimResults = false
-    recognition.lang = 'en-IN'
+    recognition.lang = SPEECH_LANG[lang] || 'en-IN'
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript
       setInput(prev => prev ? prev + ' ' + transcript : transcript)

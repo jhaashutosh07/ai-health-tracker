@@ -4,9 +4,10 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import {
   MapPin, Phone, Star, Clock, Search, SlidersHorizontal,
-  Calendar, Stethoscope, Navigation, ChevronRight, Loader2,
+  Calendar, Stethoscope, Navigation, Loader2, ExternalLink,
 } from 'lucide-react'
 import AppShell from '@/components/AppShell'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Doctor {
   id: string
@@ -48,6 +49,7 @@ const severityColor = (rating: number | null) => {
 export default function FindDoctors() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { t } = useLanguage()
 
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [loading, setLoading] = useState(false)
@@ -57,6 +59,7 @@ export default function FindDoctors() {
   const [specialization, setSpecialization] = useState('')
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [dataSource, setDataSource] = useState<'google' | 'seed' | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -91,9 +94,23 @@ export default function FindDoctors() {
         radius: radius.toString(),
         ...(specialization && { specialization }),
       })
+
+      // Try Google Places API first
+      const placesRes = await fetch(`/api/doctors/places?${params}`)
+      const placesData = await placesRes.json()
+      if (placesRes.ok && !placesData.fallback && placesData.doctors?.length > 0) {
+        setDoctors(placesData.doctors)
+        setDataSource('google')
+        return
+      }
+
+      // Fall back to seed data
       const res = await fetch(`/api/doctors/nearby?${params}`)
       const data = await res.json()
-      if (res.ok) setDoctors(data.doctors || [])
+      if (res.ok) {
+        setDoctors(data.doctors || [])
+        setDataSource('seed')
+      }
     } catch {
       /* noop */
     } finally {
@@ -129,18 +146,20 @@ export default function FindDoctors() {
 
   return (
     <AppShell
-      title="Find Doctors"
-      breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Find Doctors' }]}
+      title={t('doctors.title')}
+      breadcrumb={[{ label: t('nav.dashboard'), href: '/dashboard' }, { label: t('nav.findDoctors') }]}
     >
       <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-5">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Find Nearby Doctors</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{t('doctors.title')}</h1>
             <p className="text-slate-500 text-sm mt-1">
-              {userLocation
-                ? `Showing doctors within ${radius} km of your location`
+              {dataSource === 'google'
+                ? <span className="flex items-center gap-1">{t('doctors.subtitle')} <span className="text-emerald-600 font-semibold text-xs">● Live data</span></span>
+                : userLocation
+                ? `Showing doctors within ${radius} km`
                 : 'Enable location to find doctors near you'}
             </p>
           </div>
@@ -151,7 +170,7 @@ export default function FindDoctors() {
               className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all disabled:opacity-60"
             >
               {locating ? <Loader2 size={14} className="animate-spin" /> : <Navigation size={14} />}
-              {locating ? 'Locating…' : 'Use My Location'}
+              {locating ? t('doctors.locating') : t('doctors.useLocation')}
             </button>
           )}
         </div>
@@ -165,7 +184,7 @@ export default function FindDoctors() {
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name, specialty, or city…"
+                placeholder={t('doctors.search')}
                 className="input pl-9 text-sm w-full"
               />
             </div>
@@ -195,7 +214,7 @@ export default function FindDoctors() {
                   onChange={e => setSpecialization(e.target.value)}
                   className="input text-sm w-full"
                 >
-                  <option value="">All Specializations</option>
+                  <option value="">{t('doctors.allSpec')}</option>
                   {SPECIALIZATIONS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
@@ -231,7 +250,7 @@ export default function FindDoctors() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-semibold text-slate-700">
-              {loading ? 'Searching…' : `${filtered.length} doctor${filtered.length !== 1 ? 's' : ''} found`}
+              {loading ? t('doctors.searching') : `${filtered.length} ${filtered.length === 1 ? t('doctors.found') : t('doctors.foundPlural')}`}
               {specialization && <span className="ml-2 text-xs text-sky-600 font-medium">· {specialization}</span>}
             </p>
           </div>
@@ -239,13 +258,13 @@ export default function FindDoctors() {
           {loading ? (
             <div className="card flex items-center justify-center py-20 gap-3">
               <Loader2 size={22} className="text-sky-500 animate-spin" />
-              <span className="text-slate-400 text-sm">Finding doctors near you…</span>
+              <span className="text-slate-400 text-sm">{t('doctors.searching')}</span>
             </div>
           ) : filtered.length === 0 ? (
             <div className="card flex flex-col items-center justify-center py-16 text-center">
               <Stethoscope size={36} className="text-slate-200 mb-3" />
-              <p className="text-slate-500 font-medium mb-1">No doctors found</p>
-              <p className="text-xs text-slate-400">Try increasing the radius or changing the specialization filter.</p>
+              <p className="text-slate-500 font-medium mb-1">{t('doctors.notFound')}</p>
+              <p className="text-xs text-slate-400">{t('doctors.notFoundHint')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -281,18 +300,26 @@ export default function FindDoctors() {
 
                   {/* Info pills */}
                   <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
-                      <Clock size={11} />
-                      {doctor.experience} yrs exp
-                    </span>
+                    {doctor.experience > 0 && (
+                      <span className="flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
+                        <Clock size={11} />
+                        {doctor.experience} {t('common.yearsExp')}
+                      </span>
+                    )}
                     <span className="flex items-center gap-1 text-xs bg-sky-50 text-sky-600 font-medium px-2.5 py-1 rounded-full">
                       <MapPin size={11} />
-                      {doctor.distanceText} away
+                      {doctor.distanceText} {t('common.away')}
                     </span>
                     {doctor.consultationFee != null && (
                       <span className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">
-                        ₹{doctor.consultationFee} fee
+                        ₹{doctor.consultationFee} {t('common.fee')}
                       </span>
+                    )}
+                    {(doctor as any).isOpenNow === true && (
+                      <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-1 rounded-full">{t('doctors.openNow')}</span>
+                    )}
+                    {(doctor as any).isOpenNow === false && (
+                      <span className="text-xs bg-red-50 text-red-500 font-semibold px-2 py-1 rounded-full">{t('doctors.closed')}</span>
                     )}
                   </div>
 
@@ -305,22 +332,34 @@ export default function FindDoctors() {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <Link
-                      href={`/appointments/new?doctorId=${doctor.id}`}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-2.5 rounded-xl transition-all"
-                    >
-                      <Calendar size={13} /> Book
-                    </Link>
-                    <a
-                      href={`tel:${doctor.phone}`}
-                      className="flex items-center justify-center gap-1.5 border border-slate-200 hover:border-sky-300 text-slate-600 hover:text-sky-600 text-xs font-medium px-4 py-2.5 rounded-xl transition-all"
-                    >
-                      <Phone size={13} /> Call
-                    </a>
+                    {(doctor as any).source === 'google' ? (
+                      <a
+                        href={`https://www.google.com/maps/place/?q=place_id:${(doctor as any).placeId}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-2.5 rounded-xl transition-all"
+                      >
+                        <ExternalLink size={13} /> {t('doctors.openMaps')}
+                      </a>
+                    ) : (
+                      <Link
+                        href={`/appointments/new?doctorId=${doctor.id}`}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-2.5 rounded-xl transition-all"
+                      >
+                        <Calendar size={13} /> {t('common.book')}
+                      </Link>
+                    )}
+                    {doctor.phone && (
+                      <a
+                        href={`tel:${doctor.phone}`}
+                        className="flex items-center justify-center gap-1.5 border border-slate-200 hover:border-sky-300 text-slate-600 hover:text-sky-600 text-xs font-medium px-4 py-2.5 rounded-xl transition-all"
+                      >
+                        <Phone size={13} /> {t('common.call')}
+                      </a>
+                    )}
                     <button
                       onClick={() => openInMaps(doctor)}
                       className="flex items-center justify-center gap-1.5 border border-slate-200 hover:border-slate-300 text-slate-600 text-xs font-medium px-4 py-2.5 rounded-xl transition-all"
-                      title="Open in Google Maps"
+                      title={t('doctors.openMaps')}
                     >
                       <MapPin size={13} />
                     </button>

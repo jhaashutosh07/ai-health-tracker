@@ -2,14 +2,20 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
 import { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT } from '@/lib/claude'
+import { AI_LANG_INSTRUCTION, LangCode } from '@/lib/i18n/translations'
 import { prisma } from '@/lib/prisma'
 
-async function callAI(messages: { role: 'user' | 'assistant'; content: string }[]): Promise<string> {
+async function callAI(messages: { role: 'user' | 'assistant'; content: string }[], lang: LangCode = 'en'): Promise<string> {
+  const langInstruction = AI_LANG_INSTRUCTION[lang] || ''
+  const systemContent = langInstruction
+    ? `${SYMPTOM_CHECKER_SYSTEM_PROMPT}\n\n${langInstruction}`
+    : SYMPTOM_CHECKER_SYSTEM_PROMPT
+
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
     max_tokens: 1500,
     messages: [
-      { role: 'system', content: SYMPTOM_CHECKER_SYSTEM_PROMPT },
+      { role: 'system', content: systemContent },
       ...messages,
     ],
   })
@@ -42,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions)
   if (!session?.user) return res.status(401).json({ message: 'Unauthorized' })
 
-  const { messages } = req.body
+  const { messages, lang } = req.body
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ message: 'Invalid messages format' })
   }
@@ -50,7 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let aiResponse: string
   try {
     aiResponse = await callAI(
-      messages.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+      messages.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      (lang as LangCode) || 'en'
     )
   } catch (err: any) {
     console.error('AI API error:', err)
