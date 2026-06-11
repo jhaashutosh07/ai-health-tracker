@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
-import { Calendar, FileText, Activity, ClipboardList, UserCircle, LogOut } from 'lucide-react'
+import { Calendar, FileText, Activity, ClipboardList, UserCircle, LogOut, Settings, Bell } from 'lucide-react'
+import { useAppointmentUpdates } from '@/hooks/useAppointmentUpdates'
 
 interface Appointment {
   id: string
@@ -30,6 +31,20 @@ export default function Dashboard() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [recentSymptoms, setRecentSymptoms] = useState<SymptomLog[]>([])
   const [loading, setLoading] = useState(true)
+  const [liveUpdate, setLiveUpdate] = useState<string | null>(null)
+
+  // Real-time appointment status via Pusher
+  const handleAppointmentUpdate = useCallback((update: { appointmentId: string; status: string }) => {
+    setAppointments(prev =>
+      prev.map(apt =>
+        apt.id === update.appointmentId ? { ...apt, status: update.status } : apt
+      )
+    )
+    setLiveUpdate(`Appointment status updated to ${update.status}`)
+    setTimeout(() => setLiveUpdate(null), 5000)
+  }, [])
+
+  useAppointmentUpdates(session?.user?.id, handleAppointmentUpdate)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -98,12 +113,25 @@ export default function Dashboard() {
               </div>
               <h1 className="text-2xl font-bold text-gray-900">HealthAI</h1>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              {liveUpdate && (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-sm px-3 py-2 rounded-xl animate-pulse">
+                  <Bell size={14} />
+                  {liveUpdate}
+                </div>
+              )}
               <div className="bg-gray-100 px-4 py-2 rounded-xl border border-gray-200">
                 <span className="text-gray-900 font-medium">
                   {session?.user?.name || session?.user?.email}
                 </span>
               </div>
+              <Link
+                href="/settings"
+                className="bg-gray-100 p-2 rounded-xl hover:bg-gray-200 transition-all border border-gray-200"
+                title="Settings & Emergency Card"
+              >
+                <Settings className="h-5 w-5 text-gray-700" />
+              </Link>
               <Link
                 href="/api/auth/signout"
                 className="bg-gray-100 p-2 rounded-xl hover:bg-gray-200 transition-all border border-gray-200 group"

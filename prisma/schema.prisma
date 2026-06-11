@@ -37,6 +37,12 @@ model User {
   latitude      Float?
   longitude     Float?
 
+  // Emergency card fields
+  bloodType              String?
+  allergies              String?   // JSON array of strings
+  emergencyContactName   String?
+  emergencyContactPhone  String?
+
   // OAuth fields
   emailVerified DateTime?
   image         String?
