@@ -2,6 +2,85 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import { useEffect } from 'react'
+import {
+  Activity,
+  MessageSquare,
+  Calendar,
+  ShieldAlert,
+  BarChart2,
+  Mic,
+  ImagePlus,
+  Mail,
+  MapPin,
+  ArrowRight,
+  CheckCircle2,
+  Stethoscope,
+  Heart,
+  Users,
+  Zap,
+} from 'lucide-react'
+
+const features = [
+  {
+    icon: MessageSquare,
+    color: 'sky',
+    title: 'AI Symptom Analysis',
+    desc: 'Describe symptoms in natural language. Claude AI asks the right follow-up questions and provides a severity assessment.',
+  },
+  {
+    icon: Mic,
+    color: 'violet',
+    title: 'Voice Input',
+    desc: 'Speak your symptoms — no typing needed. Built-in voice recognition converts speech to text instantly.',
+  },
+  {
+    icon: ImagePlus,
+    color: 'rose',
+    title: 'Image Analysis',
+    desc: 'Upload photos of rashes, wounds, or lab reports. Claude Vision identifies visible symptoms objectively.',
+  },
+  {
+    icon: Calendar,
+    color: 'emerald',
+    title: 'Smart Booking',
+    desc: 'Book appointments based on your severity. Real-time status updates when your doctor confirms.',
+  },
+  {
+    icon: ShieldAlert,
+    color: 'red',
+    title: 'Emergency Card',
+    desc: 'A public QR-linked card with your blood type, allergies, and emergency contacts — accessible to first responders.',
+  },
+  {
+    icon: Mail,
+    color: 'amber',
+    title: 'Weekly Health Digest',
+    desc: 'Every Monday, Claude summarises your week — symptom trends, appointments, and a personalised wellness tip.',
+  },
+]
+
+const stats = [
+  { label: 'Registered Doctors', value: '600+', icon: Users },
+  { label: 'Symptom Checks', value: '10K+', icon: Activity },
+  { label: 'Cities Covered', value: '50+', icon: MapPin },
+  { label: 'Avg. Response Time', value: '<3s', icon: Zap },
+]
+
+const steps = [
+  { n: '01', title: 'Describe or Show', desc: 'Type, speak, or upload an image of your symptoms' },
+  { n: '02', title: 'AI Assessment', desc: 'Claude analyses severity and suggests possible conditions' },
+  { n: '03', title: 'Book a Doctor', desc: 'Schedule with a specialist matched to your needs' },
+  { n: '04', title: 'Get Better', desc: 'Online or in-person consultation, tracked in your dashboard' },
+]
+
+const colorMap: Record<string, string> = {
+  sky:     'bg-sky-50 text-sky-600 border-sky-100',
+  violet:  'bg-violet-50 text-violet-600 border-violet-100',
+  rose:    'bg-rose-50 text-rose-600 border-rose-100',
+  emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  red:     'bg-red-50 text-red-600 border-red-100',
+  amber:   'bg-amber-50 text-amber-600 border-amber-100',
+}
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -9,262 +88,235 @@ export default function Home() {
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user) {
-      // Redirect authenticated users to their appropriate dashboard
-      if (session.user.role === 'DOCTOR') {
-        router.push('/doctors/dashboard')
-      } else {
-        router.push('/dashboard')
-      }
+      router.push(session.user.role === 'DOCTOR' ? '/doctors/dashboard' : '/dashboard')
     }
   }, [session, status, router])
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 animate-gradient">
-        <div className="text-center bg-white/95 rounded-3xl p-12 shadow-2xl">
-          <div className="relative">
-            <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-purple-500/30 border-t-purple-500"></div>
-          </div>
-          <p className="mt-6 text-gray-900 text-lg font-bold">Loading...</p>
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-400">
+          <div className="w-5 h-5 rounded-full border-2 border-sky-500/40 border-t-sky-500 animate-spin" />
+          <span>Loading…</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 animate-gradient relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-float"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
-      </div>
+    <div className="min-h-screen bg-white font-sans">
+      {/* ── NAVBAR ── */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-100">
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 bg-sky-500 rounded-xl flex items-center justify-center">
+              <Stethoscope size={16} className="text-white" />
+            </div>
+            <span className="text-lg font-bold text-slate-900 tracking-tight">HealthAI</span>
+            <span className="hidden sm:inline-flex ml-1 items-center px-2 py-0.5 rounded-full bg-sky-50 border border-sky-100 text-sky-600 text-[11px] font-semibold">
+              Claude-Powered
+            </span>
+          </div>
 
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur-md border-b border-white/50 relative z-10 animate-slide-up shadow-lg">
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl">
-                <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">HealthAI</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/auth/signin"
-                className="text-gray-700 hover:bg-gray-100 px-4 py-2 rounded-lg font-medium transition-all"
+          <div className="hidden md:flex items-center gap-1 text-sm">
+            {['Features', 'How it works'].map(label => (
+              <a
+                key={label}
+                href={`#${label.toLowerCase().replace(/ /g, '-')}`}
+                className="px-3 py-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors font-medium"
               >
-                Sign In
-              </Link>
-              <Link
-                href="/auth/register"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 px-6 py-2 rounded-lg font-medium transition-all shadow-xl hover:shadow-2xl hover:scale-105 transform"
-              >
-                Get Started
-              </Link>
-            </div>
+                {label}
+              </a>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/auth/signin"
+              className="hidden sm:block text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors px-3 py-2"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/auth/register"
+              className="btn btn-primary text-sm gap-1.5"
+            >
+              Get started <ArrowRight size={14} />
+            </Link>
           </div>
         </nav>
       </header>
 
-      {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative z-10">
-        <div className="text-center animate-fade-in">
-          <div className="inline-block mb-4">
-            <span className="bg-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm border border-white/30 animate-scale-in text-purple-600 shadow-lg">
-              ✨ Powered by Advanced AI Technology
-            </span>
+      {/* ── HERO ── */}
+      <section className="relative bg-slate-900 dot-grid overflow-hidden">
+        {/* Glow blobs */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-28 text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-300 text-sm font-medium mb-8 fade-up">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            Now powered by Claude AI — Anthropic
           </div>
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-gray-900 mb-6 drop-shadow-2xl animate-slide-up bg-white/90 rounded-3xl py-6 px-8 inline-block">
-            AI-Powered Health
-            <span className="block mt-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600">
-              Assistant
-            </span>
+
+          {/* Headline */}
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-white tracking-tight leading-[1.1] mb-6 fade-up fade-up-delay-1">
+            Your personal{' '}
+            <span className="text-gradient">health intelligence</span>
+            <br />platform
           </h1>
-          <p className="text-xl sm:text-2xl text-gray-900 mb-10 max-w-3xl mx-auto drop-shadow-lg animate-slide-up bg-white/90 rounded-2xl py-4 px-6 font-semibold" style={{ animationDelay: '0.1s' }}>
-            Get instant symptom analysis, personalized health recommendations, and book appointments with qualified doctors
+
+          <p className="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed fade-up fade-up-delay-2">
+            Analyse symptoms with AI, find the right specialist, book appointments — and get a weekly health digest delivered to your inbox.
           </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <Link
-              href="/auth/signin"
-              className="group relative bg-gradient-to-r from-purple-600 to-pink-600 text-white px-10 py-5 rounded-2xl text-lg font-bold shadow-2xl transition-all transform hover:scale-110 hover-glow overflow-hidden"
-            >
-              <span className="relative z-10">Check Your Symptoms</span>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 fade-up fade-up-delay-3">
+            <Link href="/auth/register" className="btn btn-primary px-7 py-3 text-base gap-2 shadow-lg shadow-sky-500/25">
+              Check your symptoms <ArrowRight size={16} />
             </Link>
-            <Link
-              href="/find-doctors"
-              className="bg-white text-purple-600 px-10 py-5 rounded-2xl text-lg font-bold shadow-2xl transition-all transform hover:scale-110 border-2 border-white backdrop-blur-lg hover:bg-gray-50"
-            >
-              Find Doctors Nearby
+            <Link href="/find-doctors" className="btn px-7 py-3 text-base text-slate-300 bg-white/10 hover:bg-white/15 border border-white/10">
+              Find doctors near me
             </Link>
           </div>
-        </div>
 
-        {/* Features Grid */}
-        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 hover-glow border border-white/50 group animate-scale-in">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">AI Symptom Checker</h3>
-            <p className="text-gray-700">
-              Chat with our AI assistant powered by GPT-4 to analyze your symptoms and get instant recommendations
-            </p>
-          </div>
-
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 hover-glow border border-white/50 group animate-scale-in" style={{ animationDelay: '0.1s' }}>
-            <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">Severity Assessment</h3>
-            <p className="text-gray-700">
-              Automatic evaluation of your symptoms to determine if you need immediate care or can wait
-            </p>
-          </div>
-
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 hover-glow border border-white/50 group animate-scale-in" style={{ animationDelay: '0.2s' }}>
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">Easy Booking</h3>
-            <p className="text-gray-700">
-              Schedule appointments with doctors based on your symptoms, location, and availability
-            </p>
-          </div>
-
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 hover-glow border border-white/50 group animate-scale-in" style={{ animationDelay: '0.3s' }}>
-            <div className="w-16 h-16 bg-gradient-to-br from-rose-400 to-rose-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">Medical Records</h3>
-            <p className="text-gray-700">
-              Keep track of your health history, symptoms, and appointments all in one place
-            </p>
-          </div>
-
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 hover-glow border border-white/50 group animate-scale-in" style={{ animationDelay: '0.4s' }}>
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">Notifications</h3>
-            <p className="text-gray-700">
-              Get email and SMS confirmations for appointments and important health updates
-            </p>
-          </div>
-
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 hover-glow border border-white/50 group animate-scale-in" style={{ animationDelay: '0.5s' }}>
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3">Find Nearby Doctors</h3>
-            <p className="text-gray-700">
-              Locate qualified doctors near you with specializations matching your needs
-            </p>
+          {/* Feature pills */}
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-3 fade-up fade-up-delay-3">
+            {['Voice input', 'Image analysis', 'Emergency QR card', 'Real-time updates'].map(f => (
+              <span key={f} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-slate-300 text-xs font-medium">
+                <CheckCircle2 size={12} className="text-emerald-400" />
+                {f}
+              </span>
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* How It Works */}
-        <div className="mt-32 bg-white/95 rounded-3xl p-12 shadow-2xl">
-          <h2 className="text-4xl font-bold text-center text-gray-900 mb-4">How It Works</h2>
-          <p className="text-center text-gray-700 mb-16 text-lg">Your health journey in 4 simple steps</p>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="text-center group">
-              <div className="relative mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-cyan-400 to-blue-600 text-white rounded-3xl flex items-center justify-center text-3xl font-bold mx-auto shadow-2xl group-hover:scale-110 transition-transform pulse-slow">
-                  1
+      {/* ── STATS ── */}
+      <section className="bg-slate-900 border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {stats.map(({ label, value, icon: Icon }) => (
+              <div key={label} className="text-center">
+                <div className="inline-flex p-2.5 rounded-xl bg-white/5 border border-white/10 mb-3">
+                  <Icon size={18} className="text-sky-400" />
                 </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full animate-ping opacity-75"></div>
+                <p className="text-2xl font-bold text-white">{value}</p>
+                <p className="text-sm text-slate-500 mt-0.5">{label}</p>
               </div>
-              <h3 className="font-bold text-xl mb-3 text-gray-900">Describe Symptoms</h3>
-              <p className="text-gray-600">Tell our AI about what you're experiencing</p>
-            </div>
-            <div className="text-center group">
-              <div className="relative mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-emerald-400 to-green-600 text-white rounded-3xl flex items-center justify-center text-3xl font-bold mx-auto shadow-2xl group-hover:scale-110 transition-transform pulse-slow" style={{ animationDelay: '0.5s' }}>
-                  2
-                </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full animate-ping opacity-75" style={{ animationDelay: '0.5s' }}></div>
-              </div>
-              <h3 className="font-bold text-xl mb-3 text-gray-900">Get Analysis</h3>
-              <p className="text-gray-600">Receive severity assessment and recommendations</p>
-            </div>
-            <div className="text-center group">
-              <div className="relative mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-purple-600 text-white rounded-3xl flex items-center justify-center text-3xl font-bold mx-auto shadow-2xl group-hover:scale-110 transition-transform pulse-slow" style={{ animationDelay: '1s' }}>
-                  3
-                </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full animate-ping opacity-75" style={{ animationDelay: '1s' }}></div>
-              </div>
-              <h3 className="font-bold text-xl mb-3 text-gray-900">Book Appointment</h3>
-              <p className="text-gray-600">Schedule with a doctor if needed</p>
-            </div>
-            <div className="text-center group">
-              <div className="relative mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-pink-400 to-rose-600 text-white rounded-3xl flex items-center justify-center text-3xl font-bold mx-auto shadow-2xl group-hover:scale-110 transition-transform pulse-slow" style={{ animationDelay: '1.5s' }}>
-                  4
-                </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full animate-ping opacity-75" style={{ animationDelay: '1.5s' }}></div>
-              </div>
-              <h3 className="font-bold text-xl mb-3 text-gray-900">Get Treatment</h3>
-              <p className="text-gray-600">Receive care online or in person</p>
-            </div>
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* CTA Section */}
-        <div className="mt-32 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-16 text-center border border-white/50 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-100 via-pink-100 to-blue-100 animate-gradient"></div>
-          <div className="relative z-10">
-            <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-6">
-              Ready to Take Control of Your Health?
+      {/* ── FEATURES ── */}
+      <section id="features" className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <p className="text-sm font-semibold text-sky-500 uppercase tracking-widest mb-3">Features</p>
+            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+              Everything in one place
             </h2>
-            <p className="text-2xl text-gray-700 mb-10 max-w-2xl mx-auto">
-              Join thousands of users who trust HealthAI for their healthcare needs
+            <p className="mt-4 text-lg text-slate-500 max-w-2xl mx-auto">
+              From first symptom to recovery — HealthAI covers every step of your healthcare journey.
             </p>
-            <Link
-              href="/auth/register"
-              className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-12 py-5 rounded-2xl text-xl font-bold shadow-2xl transition-all transform hover:scale-110 hover-glow"
-            >
-              Get Started Free
-              <span className="ml-2">→</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map(({ icon: Icon, color, title, desc }) => (
+              <div
+                key={title}
+                className="group card p-6 hover:border-slate-200 hover:shadow-md transition-all duration-200"
+              >
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center border mb-5 ${colorMap[color]}`}>
+                  <Icon size={20} />
+                </div>
+                <h3 className="text-base font-semibold text-slate-900 mb-2">{title}</h3>
+                <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ── */}
+      <section id="how-it-works" className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <p className="text-sm font-semibold text-sky-500 uppercase tracking-widest mb-3">Process</p>
+            <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">
+              How it works
+            </h2>
+            <p className="mt-4 text-lg text-slate-500">Your health journey in four simple steps</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {steps.map(({ n, title, desc }, i) => (
+              <div key={n} className="relative">
+                {i < steps.length - 1 && (
+                  <div className="hidden lg:block absolute top-7 left-full w-full h-px bg-slate-200 z-0" style={{ width: 'calc(100% - 2rem)' }} />
+                )}
+                <div className="relative z-10">
+                  <div className="w-14 h-14 rounded-2xl bg-sky-500 text-white flex items-center justify-center text-xl font-black mb-5 shadow-lg shadow-sky-500/25">
+                    {n}
+                  </div>
+                  <h3 className="font-semibold text-slate-900 mb-2">{title}</h3>
+                  <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ── */}
+      <section className="py-24 bg-slate-900 relative overflow-hidden">
+        <div className="absolute inset-0 dot-grid opacity-50" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative max-w-3xl mx-auto px-4 text-center">
+          <div className="w-14 h-14 bg-sky-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-sky-500/30">
+            <Heart size={24} className="text-white" />
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight mb-5">
+            Take control of your health
+          </h2>
+          <p className="text-lg text-slate-400 mb-10">
+            Join thousands who use HealthAI for smarter, faster healthcare decisions.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/auth/register" className="btn btn-primary px-8 py-3 text-base gap-2 shadow-lg shadow-sky-500/30">
+              Get started free <ArrowRight size={16} />
+            </Link>
+            <Link href="/auth/signin" className="btn px-8 py-3 text-base text-slate-300 bg-white/10 hover:bg-white/15 border border-white/10">
+              Sign in
             </Link>
           </div>
         </div>
+      </section>
 
-        {/* Disclaimer */}
-        <div className="mt-16 text-center">
-          <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 border border-white/50 max-w-3xl mx-auto shadow-lg">
-            <p className="text-sm text-gray-700">
-              <strong className="text-gray-900">Disclaimer:</strong> This system is for educational and informational purposes only.
-              It should NOT replace professional medical advice, diagnosis, or treatment. Always consult
-              qualified healthcare professionals for medical concerns.
-            </p>
-          </div>
-        </div>
-      </main>
+      {/* ── DISCLAIMER ── */}
+      <div className="bg-slate-50 border-t border-slate-100 py-6 px-4">
+        <p className="text-xs text-slate-400 text-center max-w-3xl mx-auto">
+          <strong className="text-slate-500">Medical Disclaimer:</strong> HealthAI is for informational purposes only and does not replace professional medical advice, diagnosis, or treatment. Always consult a qualified healthcare provider for medical concerns.
+        </p>
+      </div>
 
-      {/* Footer */}
-      <footer className="bg-white/95 border-t border-gray-200 mt-24 relative z-10 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-gray-700">
-            <p>&copy; 2024 HealthAI. Built for improving healthcare accessibility.</p>
-            <p className="mt-2 text-sm text-gray-600">Powered by Next.js & OpenAI</p>
+      {/* ── FOOTER ── */}
+      <footer className="bg-slate-900 border-t border-white/5 py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-sky-500 rounded-lg flex items-center justify-center">
+                <Stethoscope size={13} className="text-white" />
+              </div>
+              <span className="text-slate-300 font-semibold text-sm">HealthAI</span>
+            </div>
+            <p className="text-slate-500 text-xs">© 2025 HealthAI. Built with Next.js &amp; Claude (Anthropic).</p>
+            <div className="flex items-center gap-4 text-xs text-slate-500">
+              <Link href="/auth/signin" className="hover:text-slate-300 transition-colors">Sign in</Link>
+              <Link href="/auth/register" className="hover:text-slate-300 transition-colors">Register</Link>
+              <Link href="/find-doctors" className="hover:text-slate-300 transition-colors">Find doctors</Link>
+            </div>
           </div>
         </div>
       </footer>
