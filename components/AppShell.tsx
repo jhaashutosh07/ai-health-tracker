@@ -24,6 +24,12 @@ import {
   Smile,
   MapPin,
   Loader2,
+  Hospital,
+  Shield,
+  Flame,
+  Stethoscope,
+  Droplets,
+  Share2,
 } from 'lucide-react'
 
 const patientNav = [
@@ -42,12 +48,21 @@ const doctorNav = [
   { label: 'Appointments', href: '/doctors/dashboard', icon: Calendar },
 ]
 
-const emergencyNumbers = [
-  { name: 'Emergency Services', number: '112', primary: true },
-  { name: 'Ambulance',          number: '102', primary: false },
-  { name: 'Ambulance (EMRI)',   number: '108', primary: false },
-  { name: 'Police',             number: '100', primary: false },
-  { name: 'Fire Brigade',       number: '101', primary: false },
+const quickDial = [
+  { name: 'Emergency', number: '112', color: 'bg-red-600 hover:bg-red-700' },
+  { name: 'Ambulance', number: '102', color: 'bg-orange-500 hover:bg-orange-600' },
+  { name: 'EMRI',      number: '108', color: 'bg-orange-500 hover:bg-orange-600' },
+  { name: 'Police',    number: '100', color: 'bg-blue-600 hover:bg-blue-700' },
+  { name: 'Fire',      number: '101', color: 'bg-amber-500 hover:bg-amber-600' },
+]
+
+const nearbyCategories = [
+  { label: 'Hospital',       query: 'hospital',          icon: Hospital,    bg: 'bg-red-50 hover:bg-red-100 border-red-100',     text: 'text-red-600',     iconBg: 'bg-red-100' },
+  { label: 'Pharmacy',       query: 'pharmacy 24 hours', icon: Pill,        bg: 'bg-emerald-50 hover:bg-emerald-100 border-emerald-100', text: 'text-emerald-600', iconBg: 'bg-emerald-100' },
+  { label: 'Police Station', query: 'police station',    icon: Shield,      bg: 'bg-blue-50 hover:bg-blue-100 border-blue-100',  text: 'text-blue-600',    iconBg: 'bg-blue-100' },
+  { label: 'Fire Station',   query: 'fire station',      icon: Flame,       bg: 'bg-amber-50 hover:bg-amber-100 border-amber-100', text: 'text-amber-600',   iconBg: 'bg-amber-100' },
+  { label: 'Doctor Clinic',  query: 'doctor clinic',     icon: Stethoscope, bg: 'bg-violet-50 hover:bg-violet-100 border-violet-100', text: 'text-violet-600',  iconBg: 'bg-violet-100' },
+  { label: 'Blood Bank',     query: 'blood bank',        icon: Droplets,    bg: 'bg-rose-50 hover:bg-rose-100 border-rose-100',  text: 'text-rose-600',    iconBg: 'bg-rose-100' },
 ]
 
 interface AppShellProps {
@@ -61,24 +76,25 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sosOpen, setSosOpen] = useState(false)
-  const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
 
-  const findNearbyHospitals = useCallback(() => {
+  const [locatingFor, setLocatingFor] = useState<string | null>(null)
+
+  const findNearby = useCallback((query: string) => {
     if (!navigator.geolocation) {
       setLocError('Geolocation is not supported by your browser.')
       return
     }
-    setLocating(true)
+    setLocatingFor(query)
     setLocError(null)
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        setLocating(false)
-        const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},14z`
+        setLocatingFor(null)
+        const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}/@${coords.latitude},${coords.longitude},14z`
         window.open(url, '_blank', 'noopener,noreferrer')
       },
       (err) => {
-        setLocating(false)
+        setLocatingFor(null)
         setLocError(
           err.code === 1
             ? 'Location access denied. Please allow location in your browser settings.'
@@ -87,6 +103,14 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
       },
       { timeout: 8000, maximumAge: 60000 }
     )
+  }, [])
+
+  const shareLocation = useCallback(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const url = `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`
+      navigator.clipboard?.writeText(url).then(() => alert('Location link copied to clipboard!')).catch(() => window.open(url, '_blank'))
+    })
   }, [])
 
   const isDoctor = session?.user?.role === 'DOCTOR'
@@ -258,87 +282,88 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
       {/* SOS Modal */}
       {sosOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setSosOpen(false)}
-          />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSosOpen(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
+
             {/* Header */}
-            <div className="bg-red-600 px-6 py-5">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 px-5 py-4 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
-                    <Phone size={20} className="text-white" />
+                    <ShieldAlert size={20} className="text-white" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-lg">Emergency Help</h3>
-                    <p className="text-red-100 text-xs">India emergency numbers</p>
+                    <h3 className="font-bold text-white text-lg leading-tight">Emergency SOS</h3>
+                    <p className="text-red-100 text-xs">India · Call or find nearby services</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setSosOpen(false)}
-                  className="p-2 hover:bg-white/20 rounded-xl transition-colors"
-                >
+                <button onClick={() => setSosOpen(false)} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
                   <X size={18} className="text-white" />
                 </button>
               </div>
             </div>
 
-            {/* Numbers */}
-            <div className="p-5 space-y-3">
-              {emergencyNumbers.map(({ name, number, primary }) => (
-                <div
-                  key={number}
-                  className={`flex items-center justify-between p-3.5 rounded-2xl ${
-                    primary ? 'bg-red-50 border-2 border-red-200' : 'bg-slate-50 border border-slate-100'
-                  }`}
-                >
-                  <div>
-                    <p className={`text-xs font-medium ${primary ? 'text-red-600' : 'text-slate-500'}`}>{name}</p>
-                    <p className={`text-2xl font-black tracking-tight ${primary ? 'text-red-700' : 'text-slate-800'}`}>
-                      {number}
-                    </p>
-                  </div>
-                  <a
-                    href={`tel:${number}`}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                      primary
-                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-600/30'
-                        : 'bg-slate-800 hover:bg-slate-900 text-white'
-                    }`}
-                  >
-                    <Phone size={14} />
-                    Call
-                  </a>
+            <div className="p-5 space-y-5">
+              {/* Quick Dial */}
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Quick Dial</p>
+                <div className="grid grid-cols-5 gap-2">
+                  {quickDial.map(({ name, number, color }) => (
+                    <a
+                      key={number}
+                      href={`tel:${number}`}
+                      className={`flex flex-col items-center justify-center gap-1 py-3 rounded-2xl text-white font-bold text-center transition-all ${color}`}
+                    >
+                      <Phone size={16} />
+                      <span className="text-base font-black leading-none">{number}</span>
+                      <span className="text-[9px] font-semibold opacity-90 leading-none">{name}</span>
+                    </a>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* Nearby Hospitals */}
-            <div className="px-5 pb-3">
-              <button
-                onClick={findNearbyHospitals}
-                disabled={locating}
-                className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-white font-bold py-3 rounded-2xl transition-all shadow-md shadow-sky-600/30"
-              >
-                {locating ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <MapPin size={16} />
+              {/* Find Nearby */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Find Nearby</p>
+                  <button
+                    onClick={shareLocation}
+                    className="flex items-center gap-1 text-[10px] text-sky-600 font-semibold hover:text-sky-700"
+                  >
+                    <Share2 size={11} /> Share My Location
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {nearbyCategories.map(({ label, query, icon: Icon, bg, text, iconBg }) => (
+                    <button
+                      key={query}
+                      onClick={() => findNearby(query)}
+                      disabled={locatingFor === query}
+                      className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all disabled:opacity-60 ${bg}`}
+                    >
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg}`}>
+                        {locatingFor === query
+                          ? <Loader2 size={16} className={`animate-spin ${text}`} />
+                          : <Icon size={16} className={text} />
+                        }
+                      </div>
+                      <div>
+                        <p className={`text-xs font-bold ${text}`}>{label}</p>
+                        <p className="text-[10px] text-slate-400">Near me</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {locError && (
+                  <p className="mt-2 text-xs text-red-600 text-center bg-red-50 rounded-xl py-2 px-3">{locError}</p>
                 )}
-                {locating ? 'Getting your location…' : 'Find Nearby Hospitals'}
-              </button>
-              {locError && (
-                <p className="mt-2 text-xs text-red-600 text-center">{locError}</p>
-              )}
-            </div>
+              </div>
 
-            {/* Stay calm tip */}
-            <div className="px-5 pb-5">
+              {/* Stay calm */}
               <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
-                <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <AlertTriangle size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="text-xs text-amber-800 leading-relaxed">
-                  <p className="font-semibold mb-1">Stay calm</p>
+                  <p className="font-semibold mb-0.5">Stay calm</p>
                   <p>Give your exact location. Stay on the line. Do not hang up until help arrives.</p>
                 </div>
               </div>

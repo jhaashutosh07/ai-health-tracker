@@ -4,7 +4,6 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import {
   AlertTriangle,
-  Calendar,
   Phone,
   Lightbulb,
   CheckCircle2,
@@ -16,7 +15,11 @@ import AppShell from '@/components/AppShell'
 interface Assessment {
   symptoms: string[]
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
-  possibleConditions: string[]
+  possibleConditions: ({ name: string; probability: number; reasoning: string } | string)[]
+  medicineSuggestions?: any[]
+  nonMedicineApproaches?: string[]
+  redFlags?: string[]
+  recoveryTimeline?: string
   recommendation: string
   advice: string
   completed: boolean
@@ -91,55 +94,15 @@ export default function SymptomCheck() {
               </div>
             </div>
 
-            {/* Assessment result */}
+            {/* Assessment complete banner */}
             {assessment && sevMeta && (
-              <div className={`card border p-6 ${sevMeta.bg}`}>
-                <div className="flex items-center gap-3 mb-5">
-                  <CheckCircle2 size={20} className="text-slate-600" />
-                  <h3 className="font-semibold text-slate-900">Assessment Complete</h3>
-                  <span className={`badge ${sevMeta.cls} ml-auto`}>{sevMeta.label}</span>
+              <div className={`card border p-4 flex items-center gap-3 ${sevMeta.bg}`}>
+                <CheckCircle2 size={18} className="text-slate-600 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-900 text-sm">Assessment complete — see the card in the chat above</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Scroll up to view your diagnosis, medicines, and recovery plan</p>
                 </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Reported Symptoms</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {assessment.symptoms.map((s, i) => (
-                        <span key={i} className="px-2.5 py-1 bg-white rounded-full text-xs text-slate-600 border border-slate-200">{s}</span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Possible Conditions</p>
-                    <ul className="space-y-1">
-                      {assessment.possibleConditions.map((c, i) => (
-                        <li key={i} className="flex items-center gap-2 text-xs text-slate-700">
-                          <div className="w-1 h-1 rounded-full bg-slate-400 flex-shrink-0" />
-                          {c}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                <div className="mt-5 pt-5 border-t border-black/5">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Advice</p>
-                  <p className="text-sm text-slate-700 leading-relaxed">{assessment.advice}</p>
-                </div>
-
-                {(assessment.severity === 'MEDIUM' || assessment.severity === 'HIGH' || assessment.severity === 'CRITICAL') && (
-                  <div className="mt-5">
-                    <Link
-                      href={`/appointments/new${symptomLogId ? `?symptomLogId=${symptomLogId}` : ''}`}
-                      className="btn btn-primary gap-2"
-                    >
-                      <Calendar size={15} />
-                      Book an appointment
-                      <ArrowRight size={14} />
-                    </Link>
-                  </div>
-                )}
+                <span className={`badge ${sevMeta.cls} flex-shrink-0`}>{sevMeta.label}</span>
               </div>
             )}
           </div>
