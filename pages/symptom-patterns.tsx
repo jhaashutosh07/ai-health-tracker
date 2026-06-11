@@ -7,6 +7,7 @@ import {
   Clock, Sun, ClipboardList, ArrowRight, Loader2, BarChart2,
 } from 'lucide-react'
 import AppShell from '@/components/AppShell'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Pattern {
   title: string
@@ -52,6 +53,7 @@ const logSevStyle: Record<string, string> = {
 export default function SymptomPatterns() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { t } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<{
     insufficientData: boolean
@@ -82,10 +84,10 @@ export default function SymptomPatterns() {
 
   if (status === 'loading' || loading) {
     return (
-      <AppShell title="Health Patterns">
+      <AppShell title={t('patterns.title')}>
         <div className="flex flex-col items-center justify-center h-64 gap-4">
           <Loader2 size={28} className="text-sky-500 animate-spin" />
-          <p className="text-slate-400 text-sm">Analysing your health history…</p>
+          <p className="text-slate-400 text-sm">{t('patterns.analysing')}</p>
         </div>
       </AppShell>
     )
@@ -93,27 +95,23 @@ export default function SymptomPatterns() {
 
   return (
     <AppShell
-      title="Health Patterns"
-      breadcrumb={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'Health Patterns' }]}
+      title={t('patterns.title')}
+      breadcrumb={[{ label: t('nav.dashboard'), href: '/dashboard' }, { label: t('nav.healthPatterns') }]}
     >
       <div className="p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
 
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Your Health Patterns</h1>
-            <p className="text-slate-500 text-sm mt-1">
-              {data?.count
-                ? `AI analysis of ${data.count} symptom check${data.count !== 1 ? 's' : ''}`
-                : 'AI-powered insights from your symptom history'}
-            </p>
+            <h1 className="text-2xl font-bold text-slate-900">{t('patterns.title')}</h1>
+            <p className="text-slate-500 text-sm mt-1">{t('patterns.subtitle')}</p>
           </div>
           <Link
             href="/symptom-check"
             className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all"
           >
             <ClipboardList size={14} />
-            New Check
+            {t('patterns.newCheck')}
           </Link>
         </div>
 
@@ -123,10 +121,9 @@ export default function SymptomPatterns() {
             <div className="w-16 h-16 bg-violet-50 rounded-2xl flex items-center justify-center mb-4">
               <BarChart2 size={28} className="text-violet-400" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900 mb-2">Not Enough Data Yet</h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-2">{t('patterns.noData')}</h2>
             <p className="text-slate-500 text-sm max-w-sm leading-relaxed mb-2">
-              You've done <strong>{data.count}</strong> symptom check{data.count !== 1 ? 's' : ''}.
-              Complete at least <strong>{data.needed}</strong> to unlock AI pattern insights.
+              {t('patterns.noDataHint', { n: String(data.needed || 3) })}
             </p>
             <div className="flex gap-1.5 my-4">
               {Array.from({ length: data.needed || 3 }).map((_, i) => (
@@ -137,7 +134,7 @@ export default function SymptomPatterns() {
               href="/symptom-check"
               className="flex items-center gap-2 bg-sky-600 text-white font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-sky-700 transition-all mt-2"
             >
-              Start a Symptom Check <ArrowRight size={14} />
+              {t('patterns.startCheck')} <ArrowRight size={14} />
             </Link>
           </div>
         )}
@@ -147,10 +144,10 @@ export default function SymptomPatterns() {
             {/* Stats bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
-                { label: 'Total Checks', value: data.count, color: 'text-sky-600 bg-sky-50' },
-                { label: 'Patterns Found', value: data.patterns.length, color: 'text-violet-600 bg-violet-50' },
-                { label: 'Top Symptom', value: data.topSymptoms[0]?.name || '—', color: 'text-amber-600 bg-amber-50', small: true },
-                { label: 'Alerts', value: data.patterns.filter(p => p.severity === 'alert').length, color: 'text-red-600 bg-red-50' },
+                { label: t('patterns.total'),      value: data.count, color: 'text-sky-600 bg-sky-50' },
+                { label: t('patterns.found'),      value: data.patterns.length, color: 'text-violet-600 bg-violet-50' },
+                { label: t('patterns.topSymptom'), value: data.topSymptoms[0]?.name || '—', color: 'text-amber-600 bg-amber-50', small: true },
+                { label: t('patterns.alerts'),     value: data.patterns.filter(p => p.severity === 'alert').length, color: 'text-red-600 bg-red-50' },
               ].map(({ label, value, color, small }) => (
                 <div key={label} className="card p-4 text-center">
                   <p className={`${small ? 'text-base' : 'text-3xl'} font-extrabold ${color.split(' ')[0]} mb-1`}>{value}</p>
@@ -164,7 +161,7 @@ export default function SymptomPatterns() {
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp size={16} className="text-violet-600" />
-                  <h2 className="text-base font-bold text-slate-900">AI Pattern Insights</h2>
+                  <h2 className="text-base font-bold text-slate-900">{t('patterns.insights')}</h2>
                   <span className="text-xs bg-violet-100 text-violet-700 font-semibold px-2 py-0.5 rounded-full">GPT-4o</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -197,7 +194,7 @@ export default function SymptomPatterns() {
             {/* Top Symptoms */}
             {data.topSymptoms.length > 0 && (
               <div className="card p-5">
-                <h2 className="text-sm font-bold text-slate-900 mb-4">Most Frequent Symptoms</h2>
+                <h2 className="text-sm font-bold text-slate-900 mb-4">{t('patterns.frequent')}</h2>
                 <div className="space-y-3">
                   {data.topSymptoms.map((s, i) => {
                     const pct = Math.round((s.count / data.count) * 100)
@@ -206,7 +203,7 @@ export default function SymptomPatterns() {
                       <div key={i}>
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-sm font-medium text-slate-700 capitalize">{s.name}</span>
-                          <span className="text-xs text-slate-400">{s.count} time{s.count !== 1 ? 's' : ''} · {pct}%</span>
+                          <span className="text-xs text-slate-400">{s.count} {t('patterns.times')} · {pct}%</span>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                           <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${pct}%` }} />
@@ -221,7 +218,7 @@ export default function SymptomPatterns() {
             {/* Recent history */}
             {data.recentLogs.length > 0 && (
               <div className="card p-5">
-                <h2 className="text-sm font-bold text-slate-900 mb-4">Recent Symptom History</h2>
+                <h2 className="text-sm font-bold text-slate-900 mb-4">{t('patterns.history')}</h2>
                 <div className="space-y-3">
                   {data.recentLogs.map((log, i) => (
                     <div key={i} className="flex items-start gap-3 py-2 border-b border-slate-50 last:border-0">

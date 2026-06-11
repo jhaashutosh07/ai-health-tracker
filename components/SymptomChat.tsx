@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Loader2, Mic, MicOff, ImagePlus } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { getT } from '@/lib/i18n/translations'
 
 declare global {
   interface Window {
@@ -39,13 +40,20 @@ const SPEECH_LANG: Record<string, string> = {
 }
 
 export default function SymptomChat({ onAssessmentComplete, initialMessage }: SymptomChatProps) {
-  const { lang } = useLanguage()
+  const { lang, t } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: "Hi! I'm your AI health assistant. I'm here to help you understand what you're going through.\n\nYou can type your symptoms, use the 🎤 mic to speak, or even 📷 upload a photo of something you're concerned about.\n\nSo — what's been bothering you?",
-    },
+    { role: 'assistant', content: getT(lang)('symptom.greeting') },
   ])
+
+  // Reset greeting when language changes (only if conversation hasn't started)
+  useEffect(() => {
+    setMessages(prev => {
+      if (prev.length === 1 && prev[0].role === 'assistant') {
+        return [{ role: 'assistant', content: t('symptom.greeting') }]
+      }
+      return prev
+    })
+  }, [lang, t])
   const [input, setInput] = useState(initialMessage || '')
   const [loading, setLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
@@ -194,7 +202,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
               <div className="bg-slate-100 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-2">
                 <Loader2 className="animate-spin text-slate-500" size={16} />
                 <span className="text-sm text-slate-500">
-                  {imageAnalyzing ? 'Analyzing image…' : 'Thinking…'}
+                  {imageAnalyzing ? t('symptom.analysingImage') : t('symptom.thinking')}
                 </span>
               </div>
             </div>
@@ -223,7 +231,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={completed ? 'Assessment complete' : isListening ? 'Listening…' : 'Describe your symptoms…'}
+            placeholder={completed ? t('symptom.completed') : isListening ? t('symptom.listening') : t('symptom.placeholder')}
             className="flex-1 input text-sm"
             disabled={loading || isListening || completed}
           />

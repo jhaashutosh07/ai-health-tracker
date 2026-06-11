@@ -8,7 +8,7 @@ import { prisma } from '@/lib/prisma'
 async function callAI(messages: { role: 'user' | 'assistant'; content: string }[], lang: LangCode = 'en'): Promise<string> {
   const langInstruction = AI_LANG_INSTRUCTION[lang] || ''
   const systemContent = langInstruction
-    ? `${SYMPTOM_CHECKER_SYSTEM_PROMPT}\n\n${langInstruction}`
+    ? `${langInstruction}\n\n${SYMPTOM_CHECKER_SYSTEM_PROMPT}`
     : SYMPTOM_CHECKER_SYSTEM_PROMPT
 
   const response = await openai.chat.completions.create({
