@@ -21,6 +21,8 @@ export default function SignIn() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const callbackUrl = (router.query.callbackUrl as string) || '/dashboard'
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -31,10 +33,10 @@ export default function SignIn() {
         email,
         password,
       })
-      if (result?.error) {
-        setError('Invalid email or password. Please try again.')
+      if (result?.ok && !result?.error) {
+        window.location.href = callbackUrl
       } else {
-        router.push('/dashboard')
+        setError('Invalid email or password. Please try again.')
       }
     } catch {
       setError('An error occurred. Please try again.')
