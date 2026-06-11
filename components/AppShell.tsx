@@ -18,6 +18,7 @@ import {
   X,
   Bell,
   ChevronRight,
+  Phone,
 } from 'lucide-react'
 
 const patientNav = [
@@ -195,6 +196,21 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
           {children}
         </main>
       </div>
+
+      {/* Floating SOS button */}
+      <a
+        href="tel:112"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-4 py-3 rounded-2xl shadow-lg shadow-red-600/30 transition-all hover:shadow-xl hover:shadow-red-600/40 hover:-translate-y-0.5 group"
+        title="Call emergency services — 112"
+      >
+        <div className="w-5 h-5 relative flex-shrink-0">
+          <Phone size={18} className="group-hover:animate-pulse" />
+        </div>
+        <div>
+          <p className="text-xs font-extrabold leading-none tracking-wide">SOS</p>
+          <p className="text-[10px] font-medium leading-none opacity-80 mt-0.5">Call 112</p>
+        </div>
+      </a>
     </div>
   )
 }
