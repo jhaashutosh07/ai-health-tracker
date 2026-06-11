@@ -10,52 +10,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!session?.user) return res.status(401).json({ message: 'Unauthorized' })
 
   const { todayMood, notes, moodHistory } = req.body
-
   if (!todayMood) return res.status(400).json({ message: 'Mood score is required' })
 
-  if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === 'your-anthropic-api-key-here') {
-    return res.status(200).json({
-      summary: 'Thank you for checking in with your mood today. Self-awareness is a powerful step toward wellbeing.',
-      insights: [
-        'Tracking your mood daily helps identify patterns over time.',
-        'Small lifestyle changes — like regular sleep and exercise — significantly impact mood.',
-        'Sharing how you feel, even with an app, is a healthy coping mechanism.',
-      ],
-      selfCareRecommendations: [
-        'Take a short walk outside today.',
-        'Try 5 minutes of deep breathing or meditation.',
-        'Connect with someone you care about.',
-      ],
-      positiveAffirmation: 'Every day you show up for yourself is a win. You\'re doing better than you think.',
-      professionalHelpAdvised: false,
-      demoMode: true,
-    })
-  }
-
-  const moodLabel = ['', 'Very Low', 'Low', 'Neutral', 'Good', 'Great'][todayMood] || 'Unknown'
-  const historyText = moodHistory && moodHistory.length > 0
+  const moodLabel = ['', 'Very Low 😢', 'Low 😔', 'Neutral 😐', 'Good 🙂', 'Great 😄'][Number(todayMood)] || 'Unknown'
+  const historyText = Array.isArray(moodHistory) && moodHistory.length > 0
     ? `Past week: ${moodHistory.map((m: any) => `${m.date}: ${m.score}/5`).join(', ')}`
     : 'No previous mood history'
 
-  const prompt = `You are a compassionate mental health AI assistant. Provide warm, personalized insights based on this person's mood data.
+  const prompt = `You are a compassionate mental health AI. Give warm, personalised insights based on this mood data.
 
 Today's mood: ${todayMood}/5 (${moodLabel})
-${notes ? `Today's journal entry: "${notes}"` : 'No journal entry today.'}
+${notes ? `Journal entry: "${notes}"` : 'No journal entry today.'}
 ${historyText}
 
-Respond with empathy and warmth. Be specific to their situation, not generic. If the mood is low, be extra compassionate.
-
-Respond ONLY with this JSON:
+Return ONLY this JSON, no extra text:
 {
-  "summary": "2-3 sentences acknowledging their current state with genuine empathy",
-  "insights": ["Personalized insight 1", "Personalized insight 2", "Personalized insight 3"],
-  "selfCareRecommendations": ["Specific actionable tip 1", "Specific actionable tip 2", "Specific actionable tip 3"],
-  "positiveAffirmation": "A warm, genuine, uplifting message tailored to where they are emotionally",
+  "summary": "2-3 empathetic sentences about their emotional state",
+  "insights": ["insight 1", "insight 2", "insight 3"],
+  "selfCareRecommendations": ["actionable tip 1", "actionable tip 2", "actionable tip 3"],
+  "positiveAffirmation": "A warm personalised message for them",
   "professionalHelpAdvised": false,
   "professionalHelpReason": ""
 }
 
-If mood is 1-2 for multiple days, set professionalHelpAdvised to true and explain why briefly.`
+If mood score is 1-2 for 3+ days in history, set professionalHelpAdvised to true.
+Be genuine and specific — not generic. If they wrote a journal entry, respond to it directly.`
 
   try {
     const response = await anthropic.messages.create({
@@ -65,14 +44,24 @@ If mood is 1-2 for multiple days, set professionalHelpAdvised to true and explai
     })
 
     const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      return res.status(200).json(JSON.parse(jsonMatch[0]))
+    const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    const jsonStr = codeBlock ? codeBlock[1] : text.match(/\{[\s\S]*\}/)?.[0]
+
+    if (jsonStr) {
+      return res.status(200).json(JSON.parse(jsonStr))
     }
 
-    return res.status(200).json({ summary: text, insights: [], selfCareRecommendations: [], positiveAffirmation: '', professionalHelpAdvised: false })
-  } catch (error: any) {
-    console.error('Mood insights error:', error)
-    return res.status(500).json({ message: 'Failed to generate insights. Please try again.' })
+    return res.status(200).json({
+      summary: text,
+      insights: [],
+      selfCareRecommendations: [],
+      positiveAffirmation: '',
+      professionalHelpAdvised: false,
+    })
+  } catch (err: any) {
+    console.error('Mood insights error:', err)
+    return res.status(500).json({
+      message: `AI service error: ${err.message}. Please try again.`,
+    })
   }
 }

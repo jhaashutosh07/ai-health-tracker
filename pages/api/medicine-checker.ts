@@ -14,48 +14,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'Please provide at least one medicine' })
   }
 
-  const medicineList = medicines.map((m: string) => m.trim()).filter(Boolean)
+  const medicineList = (medicines as string[]).map(m => m.trim()).filter(Boolean)
 
-  if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === 'your-anthropic-api-key-here') {
-    return res.status(200).json({
-      overallSafety: 'CAUTION',
-      interactions: [],
-      generalAdvice: 'AI analysis is currently unavailable. Please consult your doctor or pharmacist about drug interactions.',
-      importantWarnings: ['Always check with a qualified healthcare professional before combining medications.'],
-      shouldConsultDoctor: true,
-      demoMode: true,
-    })
-  }
-
-  try {
-    const prompt = `You are a clinical pharmacist AI. Analyze the following medicines for potential drug interactions, contraindications, and safety concerns.
+  const prompt = `You are a clinical pharmacist AI. Analyze these medicines for interactions and safety.
 
 Medicines: ${medicineList.join(', ')}
 
-Provide a thorough safety analysis in this exact JSON format:
+Return ONLY this JSON, no extra text:
 {
   "overallSafety": "SAFE" | "CAUTION" | "DANGER",
   "interactions": [
     {
-      "medicines": ["medicine1", "medicine2"],
+      "medicines": ["med1", "med2"],
       "severity": "MILD" | "MODERATE" | "SEVERE",
       "description": "What the interaction causes",
-      "recommendation": "What to do about it"
+      "recommendation": "What to do"
     }
   ],
-  "generalAdvice": "Overall guidance for taking these medicines together",
-  "importantWarnings": ["Warning 1", "Warning 2"],
+  "generalAdvice": "Overall guidance for taking these medicines",
+  "importantWarnings": ["warning 1", "warning 2"],
   "shouldConsultDoctor": true | false
 }
 
-Guidelines:
-- SAFE: No significant interactions found
-- CAUTION: Minor interactions or individual-specific concerns
-- DANGER: Significant interactions that could cause serious harm
-- Be specific and clinically accurate
-- If only one medicine provided, analyze its general safety, side effects, and common interactions to watch for
+Rules:
+- SAFE = no significant interactions
+- CAUTION = minor interactions or individual-specific concerns
+- DANGER = serious interactions requiring medical attention
+- If only one medicine, analyse its general safety and common drug combinations to avoid
 - Always recommend professional consultation for serious combinations`
 
+  try {
     const response = await anthropic.messages.create({
       model: 'claude-opus-4-8',
       max_tokens: 1500,
@@ -63,9 +51,13 @@ Guidelines:
     })
 
     const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[0])
+
+    // Try code block first, then bare JSON
+    const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+    const jsonStr = codeBlock ? codeBlock[1] : text.match(/\{[\s\S]*\}/)?.[0]
+
+    if (jsonStr) {
+      const result = JSON.parse(jsonStr)
       return res.status(200).json(result)
     }
 
@@ -76,8 +68,10 @@ Guidelines:
       importantWarnings: [],
       shouldConsultDoctor: true,
     })
-  } catch (error: any) {
-    console.error('Medicine checker error:', error)
-    return res.status(500).json({ message: 'Failed to analyze medicines. Please try again.' })
+  } catch (err: any) {
+    console.error('Medicine checker error:', err)
+    return res.status(500).json({
+      message: `AI analysis failed: ${err.message}. Please try again.`,
+    })
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useState } from 'react'
+import { ReactNode, useState, useCallback } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -22,6 +22,8 @@ import {
   AlertTriangle,
   Pill,
   Smile,
+  MapPin,
+  Loader2,
 } from 'lucide-react'
 
 const patientNav = [
@@ -59,6 +61,33 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sosOpen, setSosOpen] = useState(false)
+  const [locating, setLocating] = useState(false)
+  const [locError, setLocError] = useState<string | null>(null)
+
+  const findNearbyHospitals = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocError('Geolocation is not supported by your browser.')
+      return
+    }
+    setLocating(true)
+    setLocError(null)
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocating(false)
+        const url = `https://www.google.com/maps/search/hospital/@${coords.latitude},${coords.longitude},14z`
+        window.open(url, '_blank', 'noopener,noreferrer')
+      },
+      (err) => {
+        setLocating(false)
+        setLocError(
+          err.code === 1
+            ? 'Location access denied. Please allow location in your browser settings.'
+            : 'Unable to get your location. Please search manually.'
+        )
+      },
+      { timeout: 8000, maximumAge: 60000 }
+    )
+  }, [])
 
   const isDoctor = session?.user?.role === 'DOCTOR'
   const nav = isDoctor ? doctorNav : patientNav
@@ -283,6 +312,25 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
                   </a>
                 </div>
               ))}
+            </div>
+
+            {/* Nearby Hospitals */}
+            <div className="px-5 pb-3">
+              <button
+                onClick={findNearbyHospitals}
+                disabled={locating}
+                className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-sky-400 text-white font-bold py-3 rounded-2xl transition-all shadow-md shadow-sky-600/30"
+              >
+                {locating ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <MapPin size={16} />
+                )}
+                {locating ? 'Getting your location…' : 'Find Nearby Hospitals'}
+              </button>
+              {locError && (
+                <p className="mt-2 text-xs text-red-600 text-center">{locError}</p>
+              )}
             </div>
 
             {/* Stay calm tip */}

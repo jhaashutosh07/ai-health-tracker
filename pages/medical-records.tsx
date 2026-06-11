@@ -1,7 +1,19 @@
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
-import { FileText, Upload, Trash2, Download, Filter, X } from 'lucide-react'
+import AppShell from '@/components/AppShell'
+import {
+  FileText,
+  Upload,
+  Trash2,
+  X,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  ScanLine,
+  CheckCircle2,
+} from 'lucide-react'
 
 interface MedicalDocument {
   id: string
@@ -17,13 +29,27 @@ interface MedicalDocument {
 }
 
 const CATEGORIES = [
-  { value: 'ALL', label: 'All Documents', icon: '📄' },
-  { value: 'LAB_REPORT', label: 'Lab Reports', icon: '🧪' },
-  { value: 'PRESCRIPTION', label: 'Prescriptions', icon: '💊' },
-  { value: 'XRAY', label: 'X-Rays/Scans', icon: '🩻' },
-  { value: 'CERTIFICATE', label: 'Certificates', icon: '📜' },
-  { value: 'OTHER', label: 'Other', icon: '📎' }
+  { value: 'ALL',         label: 'All',          icon: '📄' },
+  { value: 'LAB_REPORT',  label: 'Lab Report',   icon: '🧪' },
+  { value: 'PRESCRIPTION',label: 'Prescription', icon: '💊' },
+  { value: 'XRAY',        label: 'X-Ray / Scan', icon: '🩻' },
+  { value: 'CERTIFICATE', label: 'Certificate',  icon: '📜' },
+  { value: 'OTHER',       label: 'Other',        icon: '📎' },
 ]
+
+function categoryIcon(cat: string) {
+  return CATEGORIES.find(c => c.value === cat)?.icon || '📄'
+}
+
+function formatDate(d: string) {
+  return new Date(d).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+function formatBytes(b: number) {
+  if (b < 1024) return b + ' B'
+  if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB'
+  return (b / (1024 * 1024)).toFixed(1) + ' MB'
+}
 
 export default function MedicalRecords() {
   const { data: session, status } = useSession()
@@ -31,135 +57,126 @@ export default function MedicalRecords() {
 
   const [documents, setDocuments] = useState<MedicalDocument[]>([])
   const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [showUploadForm, setShowUploadForm] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState('ALL')
+  const [filter, setFilter] = useState('ALL')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  // Upload form state
-  const [file, setFile] = useState<File | null>(null)
+  // Upload / OCR state
+  const [showUpload, setShowUpload] = useState(false)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
   const [category, setCategory] = useState('OTHER')
-  const [documentDate, setDocumentDate] = useState('')
-  const [uploadError, setUploadError] = useState('')
-  const [uploadSuccess, setUploadSuccess] = useState(false)
+  const [docDate, setDocDate] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [ocrResult, setOcrResult] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (session) {
-      fetchDocuments()
-    }
-  }, [session, selectedCategory])
+    if (session) fetchDocuments()
+  }, [session, filter])
 
   const fetchDocuments = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (selectedCategory !== 'ALL') {
-        params.append('category', selectedCategory)
-      }
-
-      const response = await fetch(`/api/medical-records?${params}`)
-      const data = await response.json()
-
-      if (response.ok) {
-        setDocuments(data.documents)
-      }
-    } catch (error) {
-      console.error('Error fetching documents:', error)
+      const params = filter !== 'ALL' ? `?category=${filter}` : ''
+      const res = await fetch(`/api/medical-records${params}`)
+      const data = await res.json()
+      if (res.ok) setDocuments(data.documents || [])
+    } catch {
+      // ignore
     } finally {
       setLoading(false)
     }
   }
 
-  const handleUpload = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!file) {
-      setUploadError('Please select a file')
-      return
-    }
+  const handleFileSelect = (file: File) => {
+    setImageFile(file)
+    setOcrResult(null)
+    setError(null)
+    if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
 
-    setUploading(true)
-    setUploadError('')
-    setUploadSuccess(false)
+    const reader = new FileReader()
+    reader.onload = (e) => setImagePreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const toBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        // Strip "data:image/...;base64," prefix
+        resolve(result.split(',')[1])
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
+  const handleScanAndSave = async () => {
+    if (!imageFile) return
+    setScanning(true)
+    setError(null)
+    setOcrResult(null)
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('title', title || file.name)
-      if (description) formData.append('description', description)
-      formData.append('category', category)
-      if (documentDate) formData.append('documentDate', documentDate)
-
-      const response = await fetch('/api/medical-records/upload', {
+      const base64 = await toBase64(imageFile)
+      const res = await fetch('/api/medical-records/ocr', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64,
+          mimeType: imageFile.type,
+          title: title || imageFile.name,
+          category,
+          documentDate: docDate || undefined,
+        }),
       })
 
-      const data = await response.json()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'OCR failed')
 
-      if (response.ok) {
-        setUploadSuccess(true)
-        setShowUploadForm(false)
+      setOcrResult(data.ocrText)
+      setSuccess(true)
+      fetchDocuments()
+      setTimeout(() => {
+        setSuccess(false)
+        setShowUpload(false)
         resetForm()
-        fetchDocuments()
-        setTimeout(() => setUploadSuccess(false), 3000)
-      } else {
-        setUploadError(data.message || 'Upload failed')
-      }
-    } catch (error) {
-      setUploadError('Failed to upload file. Please try again.')
+      }, 3000)
+    } catch (err: any) {
+      setError(err.message)
     } finally {
-      setUploading(false)
+      setScanning(false)
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) return
-
-    try {
-      const response = await fetch(`/api/medical-records/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        fetchDocuments()
-      } else {
-        alert('Failed to delete document')
-      }
-    } catch (error) {
-      alert('Failed to delete document')
-    }
+    if (!confirm('Delete this document?')) return
+    const res = await fetch(`/api/medical-records/${id}`, { method: 'DELETE' })
+    if (res.ok) fetchDocuments()
+    else alert('Failed to delete')
   }
 
   const resetForm = () => {
-    setFile(null)
+    setImageFile(null)
+    setImagePreview(null)
     setTitle('')
-    setDescription('')
     setCategory('OTHER')
-    setDocumentDate('')
-    setUploadError('')
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B'
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB'
-    return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-
-  const getCategoryIcon = (cat: string) => {
-    return CATEGORIES.find(c => c.value === cat)?.icon || '📄'
+    setDocDate('')
+    setOcrResult(null)
+    setError(null)
   }
 
   if (status === 'loading') {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>
+    return (
+      <AppShell title="Medical Records">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="animate-spin text-sky-500" size={32} />
+        </div>
+      </AppShell>
+    )
   }
 
   if (!session) {
@@ -167,239 +184,261 @@ export default function MedicalRecords() {
     return null
   }
 
+  const filtered = filter === 'ALL' ? documents : documents.filter(d => d.category === filter)
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 flex justify-between items-center">
+    <AppShell
+      title="Medical Records"
+      breadcrumb={[{ label: 'Medical Records' }]}
+    >
+      <div className="p-6 max-w-5xl mx-auto space-y-6">
+
+        {/* Top bar */}
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Medical Records</h1>
-            <p className="mt-2 text-gray-600">Manage your medical documents and reports</p>
+            <h1 className="text-2xl font-bold text-slate-800">Medical Records</h1>
+            <p className="text-slate-500 text-sm mt-0.5">
+              AI-powered OCR — upload any medical document image and Claude will extract & summarize it
+            </p>
           </div>
           <button
-            onClick={() => setShowUploadForm(!showUploadForm)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center space-x-2"
+            onClick={() => { setShowUpload(!showUpload); resetForm() }}
+            className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-sky-600/20"
           >
-            {showUploadForm ? <X size={20} /> : <Upload size={20} />}
-            <span>{showUploadForm ? 'Cancel' : 'Upload Document'}</span>
+            {showUpload ? <X size={16} /> : <Upload size={16} />}
+            {showUpload ? 'Cancel' : 'Upload & Scan'}
           </button>
         </div>
 
-        {/* Success Message */}
-        {uploadSuccess && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-green-800 font-semibold">Document uploaded successfully!</p>
-          </div>
-        )}
+        {/* Upload / OCR panel */}
+        {showUpload && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+              <div className="w-8 h-8 bg-sky-100 rounded-xl flex items-center justify-center">
+                <ScanLine size={16} className="text-sky-600" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-slate-800">AI Document Scanner</h2>
+                <p className="text-xs text-slate-500">Upload an image — Claude Vision will read and summarize it</p>
+              </div>
+            </div>
 
-        {/* Upload Form */}
-        {showUploadForm && (
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Upload New Document</h2>
-            <form onSubmit={handleUpload} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File *
-                  </label>
-                  <input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    onChange={(e) => {
-                      const selectedFile = e.target.files?.[0]
-                      setFile(selectedFile || null)
-                      if (selectedFile && !title) {
-                        setTitle(selectedFile.name)
-                      }
-                    }}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            <div className="p-6 space-y-5">
+              {/* Drop zone */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const f = e.dataTransfer.files[0]
+                  if (f) handleFileSelect(f)
+                }}
+                className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center cursor-pointer hover:border-sky-400 hover:bg-sky-50/50 transition-all group"
+              >
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="max-h-52 mx-auto rounded-xl object-contain shadow"
                   />
-                  <p className="text-xs text-gray-500 mt-1">Max size: 10MB. Supported: PDF, JPG, PNG, DOC, DOCX</p>
-                </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="w-14 h-14 bg-slate-100 group-hover:bg-sky-100 rounded-2xl flex items-center justify-center mx-auto transition-colors">
+                      <Upload size={24} className="text-slate-400 group-hover:text-sky-500" />
+                    </div>
+                    <p className="font-medium text-slate-700">Click or drag to upload image</p>
+                    <p className="text-xs text-slate-400">JPG, PNG, GIF, WEBP — max 10 MB</p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handleFileSelect(f)
+                  }}
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Document Title *
-                  </label>
+              {/* Form fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1">
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5 block">Title</label>
                   <input
                     type="text"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
+                    onChange={e => setTitle(e.target.value)}
                     placeholder="e.g., Blood Test Results"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category *
-                  </label>
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5 block">Category</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    onChange={e => setCategory(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   >
-                    {CATEGORIES.filter(c => c.value !== 'ALL').map(cat => (
-                      <option key={cat.value} value={cat.value}>
-                        {cat.icon} {cat.label}
-                      </option>
+                    {CATEGORIES.filter(c => c.value !== 'ALL').map(c => (
+                      <option key={c.value} value={c.value}>{c.icon} {c.label}</option>
                     ))}
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Document Date (Optional)
-                  </label>
+                  <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5 block">Document Date</label>
                   <input
                     type="date"
-                    value={documentDate}
-                    onChange={(e) => setDocumentDate(e.target.value)}
+                    value={docDate}
+                    onChange={e => setDocDate(e.target.value)}
                     max={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                    placeholder="Additional notes or description..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
               </div>
 
-              {uploadError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-red-800 text-sm">{uploadError}</p>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+                  {error}
                 </div>
               )}
 
-              <div className="flex space-x-3">
-                <button
-                  type="submit"
-                  disabled={uploading || !file}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-400"
-                >
-                  {uploading ? 'Uploading...' : 'Upload Document'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowUploadForm(false)
-                    resetForm()
-                  }}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+              {success && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 text-emerald-700">
+                  <CheckCircle2 size={18} />
+                  <span className="font-medium text-sm">Document scanned and saved successfully!</span>
+                </div>
+              )}
+
+              {ocrResult && !success && (
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 max-h-64 overflow-y-auto">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">OCR Preview</p>
+                  <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">{ocrResult}</pre>
+                </div>
+              )}
+
+              <button
+                onClick={handleScanAndSave}
+                disabled={!imageFile || scanning || success}
+                className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm"
+              >
+                {scanning ? (
+                  <><Loader2 size={16} className="animate-spin" /> Scanning with Claude AI…</>
+                ) : (
+                  <><Sparkles size={16} /> Scan & Save Document</>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Category Filter */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex items-center space-x-2 mb-3">
-            <Filter size={20} className="text-gray-600" />
-            <h3 className="font-semibold text-gray-900">Filter by Category</h3>
+        {/* How it works info box */}
+        {!showUpload && documents.length === 0 && !loading && (
+          <div className="bg-sky-50 border border-sky-100 rounded-2xl p-5">
+            <h3 className="font-semibold text-sky-800 mb-2 flex items-center gap-2">
+              <Sparkles size={16} /> How AI OCR Works
+            </h3>
+            <ul className="text-sm text-sky-700 space-y-1.5">
+              <li>• Take a photo of any lab report, prescription, or scan result</li>
+              <li>• Claude Vision reads all text from the image (even handwritten notes)</li>
+              <li>• Extracts patient details, key values, and provides a plain-English summary</li>
+              <li>• All extracted text is saved — searchable and readable anytime</li>
+            </ul>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat.value}
-                onClick={() => setSelectedCategory(cat.value)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  selectedCategory === cat.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {cat.icon} {cat.label}
-              </button>
-            ))}
-          </div>
+        )}
+
+        {/* Filter tabs */}
+        <div className="bg-white rounded-2xl border border-slate-100 p-3 flex gap-1.5 flex-wrap shadow-sm">
+          {CATEGORIES.map(c => (
+            <button
+              key={c.value}
+              onClick={() => setFilter(c.value)}
+              className={`px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all ${
+                filter === c.value
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              {c.icon} {c.label}
+            </button>
+          ))}
         </div>
 
-        {/* Documents List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold">
-              My Documents ({documents.length})
-            </h2>
-          </div>
-
-          <div className="divide-y divide-gray-200">
-            {loading ? (
-              <div className="p-8 text-center text-gray-500">Loading documents...</div>
-            ) : documents.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <FileText size={48} className="mx-auto mb-4 text-gray-400" />
-                <p>No documents found</p>
-                <p className="text-sm mt-1">Upload your first medical document to get started</p>
-              </div>
-            ) : (
-              documents.map((doc) => (
-                <div key={doc.id} className="p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-4 flex-1">
-                      <div className="text-3xl">{getCategoryIcon(doc.category)}</div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg text-gray-900">{doc.title}</h3>
-                        {doc.description && (
-                          <p className="text-sm text-gray-600 mt-1">{doc.description}</p>
+        {/* Documents list */}
+        <div className="space-y-3">
+          {loading ? (
+            <div className="text-center py-12 text-slate-400">
+              <Loader2 className="animate-spin mx-auto mb-3" size={28} />
+              <p className="text-sm">Loading documents…</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center shadow-sm">
+              <FileText size={40} className="mx-auto mb-3 text-slate-300" />
+              <p className="font-medium text-slate-600">No documents yet</p>
+              <p className="text-sm text-slate-400 mt-1">Upload a medical image to get started</p>
+            </div>
+          ) : (
+            filtered.map(doc => {
+              const isExpanded = expandedId === doc.id
+              return (
+                <div key={doc.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="p-4 flex items-start gap-4">
+                    <div className="text-3xl flex-shrink-0 mt-0.5">{categoryIcon(doc.category)}</div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-800">{doc.title}</h3>
+                      <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
+                        <span>{CATEGORIES.find(c => c.value === doc.category)?.label}</span>
+                        <span>•</span>
+                        <span>Uploaded {formatDate(doc.uploadedDate)}</span>
+                        {doc.documentDate && (
+                          <><span>•</span><span>Document date: {formatDate(doc.documentDate)}</span></>
                         )}
-                        <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-500">
-                          <span>{CATEGORIES.find(c => c.value === doc.category)?.label}</span>
-                          <span>•</span>
-                          <span>{formatFileSize(doc.fileSize)}</span>
-                          <span>•</span>
-                          <span>Uploaded: {formatDate(doc.uploadedDate)}</span>
-                          {doc.documentDate && (
-                            <>
-                              <span>•</span>
-                              <span>Date: {formatDate(doc.documentDate)}</span>
-                            </>
-                          )}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-1">{doc.fileName}</div>
+                        {doc.fileSize > 0 && (
+                          <><span>•</span><span>{formatBytes(doc.fileSize)}</span></>
+                        )}
                       </div>
+                      {doc.description && (
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-2">{doc.description.slice(0, 120)}…</p>
+                      )}
                     </div>
-
-                    <div className="flex space-x-2 ml-4">
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                        title="Download"
-                      >
-                        <Download size={20} />
-                      </a>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {doc.description && (
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : doc.id)}
+                          className="flex items-center gap-1.5 text-xs text-sky-600 hover:text-sky-700 font-medium px-3 py-1.5 rounded-lg hover:bg-sky-50 transition-all"
+                        >
+                          {isExpanded ? <><ChevronUp size={14} /> Hide OCR</> : <><ChevronDown size={14} /> View OCR</>}
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(doc.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                         title="Delete"
                       >
-                        <Trash2 size={20} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>
+
+                  {isExpanded && doc.description && (
+                    <div className="px-5 pb-5 border-t border-slate-50 mt-0">
+                      <div className="bg-slate-50 rounded-xl p-4 max-h-96 overflow-y-auto mt-3">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                          <ScanLine size={12} /> AI-Extracted Text
+                        </p>
+                        <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+                          {doc.description}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))
-            )}
-          </div>
+              )
+            })
+          )}
         </div>
       </div>
-    </div>
+    </AppShell>
   )
 }
