@@ -278,7 +278,15 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
       const data = await response.json()
       if (!response.ok) throw new Error(data.message || 'Failed to get response')
 
-      setMessages([...updatedMessages, { role: 'assistant', content: data.message }])
+      // Strip any JSON code block that leaked through (safety net)
+      const cleanMessage = (data.message || '')
+        .replace(/```json[\s\S]*?```/g, '')
+        .replace(/```[\s\S]*?```/g, '')
+        .trim()
+
+      if (cleanMessage) {
+        setMessages([...updatedMessages, { role: 'assistant', content: cleanMessage }])
+      }
 
       if (data.assessment && data.completed) {
         setCompleted(true)

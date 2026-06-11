@@ -77,7 +77,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       })
 
-      const displayMessage = aiResponse.replace(/```json[\s\S]*?```/, '').trim()
+      const displayMessage = aiResponse
+        .replace(/```json[\s\S]*?```/g, '')
+        .replace(/```[\s\S]*?```/g, '')
+        .trim()
 
       return res.status(200).json({
         message: displayMessage || "I've completed your assessment. Please see the summary below.",
@@ -88,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (dbErr) {
       console.error('DB save error:', dbErr)
       return res.status(200).json({
-        message: aiResponse.replace(/```json[\s\S]*?```/, '').trim(),
+        message: aiResponse.replace(/```json[\s\S]*?```/g, '').replace(/```[\s\S]*?```/g, '').trim(),
         assessment,
         completed: true,
       })
