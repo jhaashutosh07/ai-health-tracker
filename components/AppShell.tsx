@@ -102,7 +102,7 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
         </div>
         <span className="text-white font-bold text-lg tracking-tight">HealthAI</span>
         <span className="ml-auto bg-sky-500/20 text-sky-300 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-sky-500/30">
-          Claude
+          AI
         </span>
       </div>
 

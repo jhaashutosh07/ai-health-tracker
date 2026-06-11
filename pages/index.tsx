@@ -25,7 +25,7 @@ const features = [
     icon: MessageSquare,
     color: 'sky',
     title: 'AI Symptom Analysis',
-    desc: 'Describe symptoms in natural language. Claude AI asks the right follow-up questions and provides a severity assessment.',
+    desc: 'Describe symptoms in natural language. Our AI asks the right follow-up questions and provides a severity assessment.',
   },
   {
     icon: Mic,
@@ -37,7 +37,7 @@ const features = [
     icon: ImagePlus,
     color: 'rose',
     title: 'Image Analysis',
-    desc: 'Upload photos of rashes, wounds, or lab reports. Claude Vision identifies visible symptoms objectively.',
+    desc: 'Upload photos of rashes, wounds, or lab reports. AI vision identifies visible symptoms objectively.',
   },
   {
     icon: Calendar,
@@ -55,7 +55,7 @@ const features = [
     icon: Mail,
     color: 'amber',
     title: 'Weekly Health Digest',
-    desc: 'Every Monday, Claude summarises your week — symptom trends, appointments, and a personalised wellness tip.',
+    desc: 'Every Monday, AI summarises your week — symptom trends, appointments, and a personalised wellness tip.',
   },
 ]
 
@@ -68,7 +68,7 @@ const stats = [
 
 const steps = [
   { n: '01', title: 'Describe or Show', desc: 'Type, speak, or upload an image of your symptoms' },
-  { n: '02', title: 'AI Assessment', desc: 'Claude analyses severity and suggests possible conditions' },
+  { n: '02', title: 'AI Assessment', desc: 'AI analyses severity and suggests possible conditions' },
   { n: '03', title: 'Book a Doctor', desc: 'Schedule with a specialist matched to your needs' },
   { n: '04', title: 'Get Better', desc: 'Online or in-person consultation, tracked in your dashboard' },
 ]
@@ -114,7 +114,7 @@ export default function Home() {
             </div>
             <span className="text-lg font-bold text-slate-900 tracking-tight">HealthAI</span>
             <span className="hidden sm:inline-flex ml-1 items-center px-2 py-0.5 rounded-full bg-sky-50 border border-sky-100 text-sky-600 text-[11px] font-semibold">
-              Claude-Powered
+              AI-Powered
             </span>
           </div>
 
@@ -157,7 +157,7 @@ export default function Home() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-300 text-sm font-medium mb-8 fade-up">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
-            Now powered by Claude AI — Anthropic
+            Now powered by GPT-4o — OpenAI
           </div>
 
           {/* Headline */}
@@ -311,7 +311,7 @@ export default function Home() {
               </div>
               <span className="text-slate-300 font-semibold text-sm">HealthAI</span>
             </div>
-            <p className="text-slate-500 text-xs">© 2025 HealthAI. Built with Next.js &amp; Claude (Anthropic).</p>
+            <p className="text-slate-500 text-xs">© 2025 HealthAI. Built with Next.js &amp; OpenAI.</p>
             <div className="flex items-center gap-4 text-xs text-slate-500">
               <Link href="/auth/signin" className="hover:text-slate-300 transition-colors">Sign in</Link>
               <Link href="/auth/register" className="hover:text-slate-300 transition-colors">Register</Link>

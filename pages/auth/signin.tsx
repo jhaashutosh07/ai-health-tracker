@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 
 const features = [
-  { icon: Brain, text: 'Claude AI symptom analysis' },
+  { icon: Brain, text: 'AI-powered symptom analysis' },
   { icon: ShieldCheck, text: 'Emergency medical card + QR' },
   { icon: Zap, text: 'Real-time appointment updates' },
 ]
@@ -60,7 +60,7 @@ export default function SignIn() {
             </div>
             <span className="text-lg font-bold tracking-tight">HealthAI</span>
             <span className="text-[10px] font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full ml-1">
-              Claude
+              AI
             </span>
           </div>
 
@@ -87,7 +87,7 @@ export default function SignIn() {
           </div>
 
           <p className="text-xs text-slate-600">
-            Powered by Anthropic Claude · Built with Next.js
+            Powered by AI · Built with Next.js
           </p>
         </div>
       </div>

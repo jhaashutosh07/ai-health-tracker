@@ -35,7 +35,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hi! I'm your AI health assistant powered by Claude. I'm here to help you understand what you're going through.\n\nYou can type your symptoms, use the 🎤 mic to speak, or even 📷 upload a photo of something you're concerned about.\n\nSo — what's been bothering you?",
+      content: "Hi! I'm your AI health assistant. I'm here to help you understand what you're going through.\n\nYou can type your symptoms, use the 🎤 mic to speak, or even 📷 upload a photo of something you're concerned about.\n\nSo — what's been bothering you?",
     },
   ])
   const [input, setInput] = useState(initialMessage || '')

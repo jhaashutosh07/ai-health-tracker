@@ -1,36 +1,36 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
-import { anthropic, SYMPTOM_CHECKER_SYSTEM_PROMPT } from '@/lib/claude'
+import { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT } from '@/lib/claude'
 import { prisma } from '@/lib/prisma'
 
-async function callClaude(messages: { role: 'user' | 'assistant'; content: string }[]): Promise<string> {
-  const response = await anthropic.messages.create({
-    model: 'claude-opus-4-8',
+async function callAI(messages: { role: 'user' | 'assistant'; content: string }[]): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
     max_tokens: 1500,
-    system: SYMPTOM_CHECKER_SYSTEM_PROMPT,
-    messages,
+    messages: [
+      { role: 'system', content: SYMPTOM_CHECKER_SYSTEM_PROMPT },
+      ...messages,
+    ],
   })
-  return response.content[0]?.type === 'text' ? response.content[0].text : ''
+  return response.choices[0]?.message?.content || ''
 }
 
 function extractAssessment(text: string) {
-  // Match JSON inside ```json ... ``` code block (what the new prompt produces)
   const codeBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/)
   if (codeBlockMatch) {
     try {
       const parsed = JSON.parse(codeBlockMatch[1])
       if (parsed.completed === true) return parsed
-    } catch { /* ignore */ }
+    } catch { }
   }
 
-  // Fallback: bare JSON object containing "completed": true
   const bareMatch = text.match(/\{[\s\S]*?"completed"\s*:\s*true[\s\S]*?\}/)
   if (bareMatch) {
     try {
       const parsed = JSON.parse(bareMatch[0])
       if (parsed.completed === true) return parsed
-    } catch { /* ignore */ }
+    } catch { }
   }
 
   return null
@@ -49,11 +49,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   let aiResponse: string
   try {
-    aiResponse = await callClaude(
+    aiResponse = await callAI(
       messages.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
     )
   } catch (err: any) {
-    console.error('Claude API error:', err)
+    console.error('AI API error:', err)
     return res.status(500).json({
       message: `Sorry, the AI service is temporarily unavailable (${err.message}). Please try again in a moment.`,
     })
@@ -77,10 +77,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       })
 
-      // Strip the JSON block from the displayed message so the UI looks clean
-      const displayMessage = aiResponse
-        .replace(/```json[\s\S]*?```/, '')
-        .trim()
+      const displayMessage = aiResponse.replace(/```json[\s\S]*?```/, '').trim()
 
       return res.status(200).json({
         message: displayMessage || "I've completed your assessment. Please see the summary below.",
@@ -90,7 +87,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     } catch (dbErr) {
       console.error('DB save error:', dbErr)
-      // Still return the assessment even if DB save fails
       return res.status(200).json({
         message: aiResponse.replace(/```json[\s\S]*?```/, '').trim(),
         assessment,

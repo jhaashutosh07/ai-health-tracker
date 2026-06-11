@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
-import { anthropic } from '@/lib/claude'
+import { openai } from '@/lib/claude'
 import { prisma } from '@/lib/prisma'
 
 export const config = {
@@ -31,26 +31,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
   }
 
-  // Estimate base64 size (4/3 × bytes) — reject obvious oversize early
   const estimatedBytes = (imageBase64.length * 3) / 4
   if (estimatedBytes > 10 * 1024 * 1024) {
     return res.status(400).json({ message: 'Image is too large. Please upload an image under 10MB.' })
   }
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
       max_tokens: 2000,
       messages: [
         {
           role: 'user',
           content: [
             {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-                data: imageBase64,
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType};base64,${imageBase64}`,
               },
             },
             {
@@ -79,13 +76,12 @@ Be thorough with the OCR — capture all numbers, units, reference ranges, and m
       ],
     })
 
-    const ocrText = response.content[0]?.type === 'text' ? response.content[0].text : ''
+    const ocrText = response.choices[0]?.message?.content || ''
 
     if (!ocrText) {
       return res.status(500).json({ message: 'OCR returned no text. Please try a clearer image.' })
     }
 
-    // Save to database — description holds full OCR + summary text
     const document = await prisma.medicalDocument.create({
       data: {
         userId: session.user.id,

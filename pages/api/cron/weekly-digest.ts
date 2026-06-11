@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
-import { anthropic } from '@/lib/claude'
+import { openai } from '@/lib/claude'
 import nodemailer from 'nodemailer'
 
 // Secured — only callable by Vercel Cron with the CRON_SECRET header
@@ -70,8 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       let digest = ''
 
-      if (process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'your-anthropic-api-key-here') {
-        const prompt = `You are a health AI assistant. Generate a friendly weekly health digest for ${user.name || 'the patient'}.
+      const prompt = `You are a health AI assistant. Generate a friendly weekly health digest for ${user.name || 'the patient'}.
 
 Data from the past 7 days:
 ${JSON.stringify(summaryData, null, 2)}
@@ -84,14 +83,14 @@ Write a warm, concise digest (3-5 sentences) that:
 
 Keep it positive, supportive, and non-alarmist. Plain text only, no markdown.`
 
-        const response = await anthropic.messages.create({
-          model: 'claude-opus-4-8',
+      try {
+        const aiRes = await openai.chat.completions.create({
+          model: 'gpt-4o',
           max_tokens: 400,
           messages: [{ role: 'user', content: prompt }],
         })
-
-        digest = response.content[0]?.type === 'text' ? response.content[0].text : ''
-      } else {
+        digest = aiRes.choices[0]?.message?.content || ''
+      } catch {
         const symCount = symptomLogs.length
         const aptCount = appointments.length
         digest = `Hi ${user.name || 'there'}! Here's your weekly health summary. You logged ${symCount} symptom check${symCount !== 1 ? 's' : ''} and had ${aptCount} appointment${aptCount !== 1 ? 's' : ''} this week. Keep monitoring your health and stay hydrated. Have a great week ahead!`

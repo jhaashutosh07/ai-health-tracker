@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
-import { anthropic } from '@/lib/claude'
+import { openai } from '@/lib/claude'
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
@@ -28,26 +28,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'Unsupported image type. Use JPEG, PNG, GIF, or WebP.' })
   }
 
-  if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === 'your-anthropic-api-key-here') {
-    return res.status(200).json({
-      description: 'Image analysis is available with a valid Anthropic API key. Based on the uploaded image, please describe what you observe (e.g., rash location, wound size, swelling area).',
-    })
-  }
-
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
       max_tokens: 512,
       messages: [
         {
           role: 'user',
           content: [
             {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mimeType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-                data: image,
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType};base64,${image}`,
               },
             },
             {
@@ -59,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ],
     })
 
-    const description = response.content[0]?.type === 'text' ? response.content[0].text : ''
+    const description = response.choices[0]?.message?.content || ''
     return res.status(200).json({ description })
   } catch (error: any) {
     console.error('Image analysis error:', error)

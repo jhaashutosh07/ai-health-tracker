@@ -82,8 +82,8 @@ export default function SymptomCheck() {
               <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3 flex-shrink-0">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">Claude AI Health Assistant</p>
-                  <p className="text-xs text-slate-400">Powered by Anthropic · voice &amp; image enabled</p>
+                  <p className="text-sm font-semibold text-slate-900">AI Health Assistant</p>
+                  <p className="text-xs text-slate-400">GPT-4o powered · voice &amp; image enabled</p>
                 </div>
               </div>
               <div className="flex-1 overflow-hidden">

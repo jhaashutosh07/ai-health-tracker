@@ -1,7 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
-export const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
+export const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
 })
 
 export const SYMPTOM_CHECKER_SYSTEM_PROMPT = `You are a compassionate and knowledgeable AI health assistant. Think of yourself as a caring, well-informed friend who happens to have deep medical knowledge. Your tone is warm, natural, and conversational — never clinical or scripted.

@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth/[...nextauth]'
-import { anthropic } from '@/lib/claude'
+import { openai } from '@/lib/claude'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' })
@@ -44,21 +44,19 @@ Rules:
 - Always recommend professional consultation for serious combinations`
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-opus-4-8',
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
       max_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const text = response.content[0]?.type === 'text' ? response.content[0].text : ''
+    const text = response.choices[0]?.message?.content || ''
 
-    // Try code block first, then bare JSON
     const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
     const jsonStr = codeBlock ? codeBlock[1] : text.match(/\{[\s\S]*\}/)?.[0]
 
     if (jsonStr) {
-      const result = JSON.parse(jsonStr)
-      return res.status(200).json(result)
+      return res.status(200).json(JSON.parse(jsonStr))
     }
 
     return res.status(200).json({
