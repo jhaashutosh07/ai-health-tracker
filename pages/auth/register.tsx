@@ -67,9 +67,9 @@ export default function Register() {
         })
         if (result?.error) {
           setError('Account created! Please sign in.')
-          setTimeout(() => router.push('/auth/signin'), 2000)
+          setTimeout(() => { window.location.href = '/auth/signin' }, 2000)
         } else {
-          router.push('/dashboard')
+          window.location.href = '/dashboard'
         }
       } else {
         setError(data.message || 'Registration failed. Please try again.')

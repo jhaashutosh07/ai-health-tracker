@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Loader2, AlertCircle, Calendar, Mic, MicOff, ImagePlus } from 'lucide-react'
+import { Send, Bot, User, Loader2, Mic, MicOff, ImagePlus } from 'lucide-react'
 
 declare global {
   interface Window {
@@ -28,20 +28,21 @@ interface Assessment {
 
 interface SymptomChatProps {
   onAssessmentComplete?: (assessment: Assessment, symptomLogId: string) => void
+  initialMessage?: string
 }
 
-export default function SymptomChat({ onAssessmentComplete }: SymptomChatProps) {
+export default function SymptomChat({ onAssessmentComplete, initialMessage }: SymptomChatProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hello! I'm your AI health assistant powered by Claude. I'll help you understand your symptoms.\n\nYou can type, use the 🎤 microphone button to speak, or upload an image of your symptom. To get started — what symptoms are you experiencing?",
+      content: "Hi! I'm your AI health assistant powered by Claude. I'm here to help you understand what you're going through.\n\nYou can type your symptoms, use the 🎤 mic to speak, or even 📷 upload a photo of something you're concerned about.\n\nSo — what's been bothering you?",
     },
   ])
-  const [input, setInput] = useState('')
+  const [input, setInput] = useState(initialMessage || '')
   const [loading, setLoading] = useState(false)
-  const [assessment, setAssessment] = useState<Assessment | null>(null)
   const [isListening, setIsListening] = useState(false)
   const [imageAnalyzing, setImageAnalyzing] = useState(false)
+  const [completed, setCompleted] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null)
@@ -86,7 +87,7 @@ export default function SymptomChat({ onAssessmentComplete }: SymptomChatProps) 
       setMessages([...updatedMessages, { role: 'assistant', content: data.message }])
 
       if (data.assessment && data.completed) {
-        setAssessment(data.assessment)
+        setCompleted(true)
         if (onAssessmentComplete) {
           onAssessmentComplete(data.assessment, data.symptomLogId)
         }
@@ -95,7 +96,7 @@ export default function SymptomChat({ onAssessmentComplete }: SymptomChatProps) 
       console.error('Chat error:', error)
       setMessages([
         ...updatedMessages,
-        { role: 'assistant', content: 'I apologize, but I encountered an error. Please try again.' },
+        { role: 'assistant', content: "I'm sorry, I ran into an issue. Please try again — or refresh if the problem continues." },
       ])
     } finally {
       setLoading(false)
@@ -172,33 +173,25 @@ export default function SymptomChat({ onAssessmentComplete }: SymptomChatProps) 
     reader.readAsDataURL(file)
   }
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'LOW': return 'bg-green-100 text-green-800 border-green-200'
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'HIGH': return 'bg-orange-100 text-orange-800 border-orange-200'
-      case 'CRITICAL': return 'bg-red-100 text-red-800 border-red-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-
   return (
     <div className="flex flex-col h-full">
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
         {messages.map((message, index) => (
           <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`flex gap-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+            <div className={`flex gap-2.5 max-w-[85%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  message.role === 'user' ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700'
+                className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  message.role === 'user' ? 'bg-sky-600 text-white' : 'bg-slate-200 text-slate-600'
                 }`}
               >
-                {message.role === 'user' ? <User size={18} /> : <Bot size={18} />}
+                {message.role === 'user' ? <User size={14} /> : <Bot size={14} />}
               </div>
               <div
-                className={`px-4 py-3 rounded-lg ${
-                  message.role === 'user' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-900'
+                className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                  message.role === 'user'
+                    ? 'bg-sky-600 text-white rounded-tr-sm'
+                    : 'bg-slate-100 text-slate-900 rounded-tl-sm'
                 }`}
               >
                 <p className="whitespace-pre-wrap">{message.content}</p>
@@ -209,71 +202,16 @@ export default function SymptomChat({ onAssessmentComplete }: SymptomChatProps) 
 
         {(loading || imageAnalyzing) && (
           <div className="flex justify-start">
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                <Bot size={18} />
+            <div className="flex gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0">
+                <Bot size={14} className="text-slate-600" />
               </div>
-              <div className="bg-gray-100 px-4 py-3 rounded-lg flex items-center gap-2">
-                <Loader2 className="animate-spin" size={20} />
-                <span className="text-sm text-gray-500">
-                  {imageAnalyzing ? 'Analyzing image...' : 'Thinking...'}
+              <div className="bg-slate-100 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-2">
+                <Loader2 className="animate-spin text-slate-500" size={16} />
+                <span className="text-sm text-slate-500">
+                  {imageAnalyzing ? 'Analyzing image…' : 'Thinking…'}
                 </span>
               </div>
-            </div>
-          </div>
-        )}
-
-        {assessment && (
-          <div className="border-t pt-4 mt-4">
-            <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <AlertCircle className="text-primary-600" />
-                Assessment Summary
-              </h3>
-
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Severity Level</p>
-                <span className={`inline-block px-4 py-2 rounded-lg border font-semibold ${getSeverityColor(assessment.severity)}`}>
-                  {assessment.severity}
-                </span>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Reported Symptoms</p>
-                <div className="flex flex-wrap gap-2">
-                  {assessment.symptoms.map((symptom, idx) => (
-                    <span key={idx} className="bg-gray-100 px-3 py-1 rounded-full text-sm text-gray-700">
-                      {symptom}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Possible Conditions</p>
-                <ul className="list-disc list-inside space-y-1 text-gray-600">
-                  {assessment.possibleConditions.map((condition, idx) => (
-                    <li key={idx}>{condition}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Recommendation</p>
-                <p className="text-gray-600">{assessment.advice}</p>
-              </div>
-
-              {assessment.severity !== 'LOW' && (
-                <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 flex items-start gap-3">
-                  <Calendar className="text-primary-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-primary-900">Ready to book an appointment?</p>
-                    <p className="text-sm text-primary-700 mt-1">
-                      Based on your symptoms, we recommend scheduling a consultation with a healthcare provider.
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -282,15 +220,14 @@ export default function SymptomChat({ onAssessmentComplete }: SymptomChatProps) 
       </div>
 
       {/* Input Area */}
-      <div className="border-t bg-white p-4">
+      <div className="border-t border-slate-100 bg-white p-3.5">
         {isListening && (
-          <div className="mb-2 flex items-center gap-2 text-sm text-red-600 font-medium animate-pulse">
+          <div className="mb-2.5 flex items-center gap-2 text-xs text-red-600 font-semibold animate-pulse">
             <span className="w-2 h-2 bg-red-500 rounded-full inline-block" />
-            Listening... Speak now
+            Listening… speak now
           </div>
         )}
         <div className="flex gap-2">
-          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -299,28 +236,26 @@ export default function SymptomChat({ onAssessmentComplete }: SymptomChatProps) 
             className="hidden"
           />
 
-          {/* Image upload button */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            disabled={loading || imageAnalyzing || !!assessment}
+            disabled={loading || imageAnalyzing || completed}
             title="Upload a symptom image for AI analysis"
-            className="btn bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-40 p-2"
+            className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-40 transition-colors flex-shrink-0"
           >
-            <ImagePlus size={18} />
+            <ImagePlus size={17} />
           </button>
 
-          {/* Voice input button */}
           <button
             onClick={toggleVoice}
-            disabled={loading || !!assessment}
+            disabled={loading || completed}
             title={isListening ? 'Stop recording' : 'Speak your symptoms'}
-            className={`btn p-2 disabled:opacity-40 ${
+            className={`p-2.5 rounded-xl disabled:opacity-40 transition-colors flex-shrink-0 ${
               isListening
                 ? 'bg-red-100 hover:bg-red-200 text-red-600'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
             }`}
           >
-            {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            {isListening ? <MicOff size={17} /> : <Mic size={17} />}
           </button>
 
           <input
@@ -328,17 +263,21 @@ export default function SymptomChat({ onAssessmentComplete }: SymptomChatProps) 
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={isListening ? 'Listening...' : 'Type or speak your symptoms...'}
-            className="flex-1 input"
-            disabled={loading || isListening}
+            placeholder={
+              completed ? 'Assessment complete' :
+              isListening ? 'Listening…' :
+              'Describe your symptoms…'
+            }
+            className="flex-1 input text-sm"
+            disabled={loading || isListening || completed}
           />
 
           <button
             onClick={handleSend}
-            disabled={loading || !input.trim()}
-            className="btn btn-primary disabled:opacity-50 flex items-center gap-2"
+            disabled={loading || !input.trim() || completed}
+            className="btn btn-primary disabled:opacity-50 flex-shrink-0"
           >
-            <Send size={18} />
+            <Send size={16} />
           </button>
         </div>
       </div>

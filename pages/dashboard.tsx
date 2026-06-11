@@ -13,6 +13,9 @@ import {
   AlertCircle,
   TrendingUp,
   Bell,
+  Pill,
+  Smile,
+  ShieldCheck,
 } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import { useAppointmentUpdates } from '@/hooks/useAppointmentUpdates'
@@ -133,6 +136,28 @@ export default function Dashboard() {
     amber:   'bg-amber-500',
   }
 
+  const calcHealthScore = () => {
+    if (loading) return null
+    let score = 90
+    recentSymptoms.slice(0, 5).forEach(s => {
+      if (s.severity === 'CRITICAL') score -= 28
+      else if (s.severity === 'HIGH') score -= 15
+      else if (s.severity === 'MEDIUM') score -= 7
+      else score -= 2
+    })
+    score += Math.min(appointments.filter(a => a.status === 'COMPLETED').length * 3, 12)
+    return Math.max(10, Math.min(100, score))
+  }
+  const healthScore = calcHealthScore()
+  const scoreColor = healthScore === null ? '' :
+    healthScore >= 80 ? 'text-emerald-600' :
+    healthScore >= 60 ? 'text-amber-600' :
+    'text-red-600'
+  const scoreLabel = healthScore === null ? '' :
+    healthScore >= 80 ? 'Excellent' :
+    healthScore >= 60 ? 'Fair' :
+    'Needs attention'
+
   if (status === 'loading' || loading) {
     return (
       <AppShell title="Dashboard">
@@ -174,8 +199,8 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Metric cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric cards + health score */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {metricCards.map(({ label, value, change, icon: Icon, color }) => (
             <div key={label} className="card p-5">
               <div className="flex items-start justify-between mb-4">
@@ -188,42 +213,83 @@ export default function Dashboard() {
               <p className="text-xs text-slate-400 mt-0.5">{change}</p>
             </div>
           ))}
+
+          {/* AI Health Score */}
+          <div className="card p-5 col-span-2 lg:col-span-1 flex flex-col">
+            <div className="flex items-center gap-2 mb-3">
+              <ShieldCheck size={15} className="text-sky-500" />
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">AI Health Score</p>
+            </div>
+            {healthScore !== null ? (
+              <>
+                <p className={`text-4xl font-black ${scoreColor}`}>{healthScore}</p>
+                <p className={`text-xs font-semibold mt-1 ${scoreColor}`}>{scoreLabel}</p>
+                <div className="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      healthScore >= 80 ? 'bg-emerald-500' :
+                      healthScore >= 60 ? 'bg-amber-500' :
+                      'bg-red-500'
+                    }`}
+                    style={{ width: `${healthScore}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">Based on recent activity</p>
+              </>
+            ) : (
+              <p className="text-xs text-slate-400 mt-2">Log activity to see score</p>
+            )}
+          </div>
         </div>
 
-        {/* Quick actions row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Link href="/symptom-check" className="card p-5 flex items-center gap-4 hover:border-sky-200 hover:shadow-md transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center flex-shrink-0">
-              <ClipboardList size={18} className="text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-slate-900 text-sm">Symptom Check</p>
-              <p className="text-xs text-slate-500">AI-powered analysis</p>
-            </div>
-            <ArrowRight size={16} className="text-slate-300 group-hover:text-sky-500 transition-colors flex-shrink-0" />
-          </Link>
+        {/* AI Feature cards */}
+        <div>
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">AI-Powered Tools</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link href="/symptom-check" className="card p-5 flex items-center gap-4 hover:border-sky-200 hover:shadow-md transition-all group">
+              <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center flex-shrink-0">
+                <ClipboardList size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-900 text-sm">Symptom Check</p>
+                <p className="text-xs text-slate-500">AI analysis + voice</p>
+              </div>
+              <ArrowRight size={16} className="text-slate-300 group-hover:text-sky-500 transition-colors flex-shrink-0" />
+            </Link>
 
-          <Link href="/appointments/new" className="card p-5 flex items-center gap-4 hover:border-emerald-200 hover:shadow-md transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0">
-              <Calendar size={18} className="text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-slate-900 text-sm">Book Appointment</p>
-              <p className="text-xs text-slate-500">Find a specialist</p>
-            </div>
-            <ArrowRight size={16} className="text-slate-300 group-hover:text-emerald-500 transition-colors flex-shrink-0" />
-          </Link>
+            <Link href="/medicine-checker" className="card p-5 flex items-center gap-4 hover:border-violet-200 hover:shadow-md transition-all group">
+              <div className="w-10 h-10 rounded-xl bg-violet-500 flex items-center justify-center flex-shrink-0">
+                <Pill size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-900 text-sm">Medicine Checker</p>
+                <p className="text-xs text-slate-500">Drug interaction AI</p>
+              </div>
+              <ArrowRight size={16} className="text-slate-300 group-hover:text-violet-500 transition-colors flex-shrink-0" />
+            </Link>
 
-          <Link href="/settings" className="card p-5 flex items-center gap-4 hover:border-red-200 hover:shadow-md transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center flex-shrink-0">
-              <AlertCircle size={18} className="text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-slate-900 text-sm">Emergency Card</p>
-              <p className="text-xs text-slate-500">Setup your QR card</p>
-            </div>
-            <ArrowRight size={16} className="text-slate-300 group-hover:text-red-500 transition-colors flex-shrink-0" />
-          </Link>
+            <Link href="/mood-tracker" className="card p-5 flex items-center gap-4 hover:border-pink-200 hover:shadow-md transition-all group">
+              <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center flex-shrink-0">
+                <Smile size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-900 text-sm">Mood Tracker</p>
+                <p className="text-xs text-slate-500">Mental health AI</p>
+              </div>
+              <ArrowRight size={16} className="text-slate-300 group-hover:text-pink-500 transition-colors flex-shrink-0" />
+            </Link>
+
+            <Link href="/appointments/new" className="card p-5 flex items-center gap-4 hover:border-emerald-200 hover:shadow-md transition-all group">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                <Calendar size={18} className="text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-slate-900 text-sm">Book Appointment</p>
+                <p className="text-xs text-slate-500">Find a specialist</p>
+              </div>
+              <ArrowRight size={16} className="text-slate-300 group-hover:text-emerald-500 transition-colors flex-shrink-0" />
+            </Link>
+          </div>
         </div>
 
         {/* Appointments + Symptoms */}

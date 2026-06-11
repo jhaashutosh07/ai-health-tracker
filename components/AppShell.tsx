@@ -19,20 +19,33 @@ import {
   Bell,
   ChevronRight,
   Phone,
+  AlertTriangle,
+  Pill,
+  Smile,
 } from 'lucide-react'
 
 const patientNav = [
-  { label: 'Dashboard',       href: '/dashboard',       icon: Activity },
-  { label: 'Symptom Check',   href: '/symptom-check',   icon: ClipboardList },
-  { label: 'Appointments',    href: '/appointments',    icon: Calendar },
-  { label: 'Find Doctors',    href: '/find-doctors',    icon: Users },
-  { label: 'Medical Records', href: '/medical-records', icon: FileText },
-  { label: 'Analytics',       href: '/analytics',       icon: BarChart2 },
+  { label: 'Dashboard',         href: '/dashboard',         icon: Activity },
+  { label: 'Symptom Check',     href: '/symptom-check',     icon: ClipboardList },
+  { label: 'Medicine Checker',  href: '/medicine-checker',  icon: Pill },
+  { label: 'Mood Tracker',      href: '/mood-tracker',      icon: Smile },
+  { label: 'Appointments',      href: '/appointments',      icon: Calendar },
+  { label: 'Find Doctors',      href: '/find-doctors',      icon: Users },
+  { label: 'Medical Records',   href: '/medical-records',   icon: FileText },
+  { label: 'Analytics',         href: '/analytics',         icon: BarChart2 },
 ]
 
 const doctorNav = [
   { label: 'Dashboard',    href: '/doctors/dashboard', icon: Activity },
   { label: 'Appointments', href: '/doctors/dashboard', icon: Calendar },
+]
+
+const emergencyNumbers = [
+  { name: 'Emergency Services', number: '112', primary: true },
+  { name: 'Ambulance',          number: '102', primary: false },
+  { name: 'Ambulance (EMRI)',   number: '108', primary: false },
+  { name: 'Police',             number: '100', primary: false },
+  { name: 'Fire Brigade',       number: '101', primary: false },
 ]
 
 interface AppShellProps {
@@ -45,6 +58,7 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
   const { data: session } = useSession()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sosOpen, setSosOpen] = useState(false)
 
   const isDoctor = session?.user?.role === 'DOCTOR'
   const nav = isDoctor ? doctorNav : patientNav
@@ -198,19 +212,92 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
       </div>
 
       {/* Floating SOS button */}
-      <a
-        href="tel:112"
+      <button
+        onClick={() => setSosOpen(true)}
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-4 py-3 rounded-2xl shadow-lg shadow-red-600/30 transition-all hover:shadow-xl hover:shadow-red-600/40 hover:-translate-y-0.5 group"
-        title="Call emergency services — 112"
+        title="Emergency help"
       >
         <div className="w-5 h-5 relative flex-shrink-0">
           <Phone size={18} className="group-hover:animate-pulse" />
         </div>
         <div>
           <p className="text-xs font-extrabold leading-none tracking-wide">SOS</p>
-          <p className="text-[10px] font-medium leading-none opacity-80 mt-0.5">Call 112</p>
+          <p className="text-[10px] font-medium leading-none opacity-80 mt-0.5">Emergency</p>
         </div>
-      </a>
+      </button>
+
+      {/* SOS Modal */}
+      {sosOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setSosOpen(false)}
+          />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+            {/* Header */}
+            <div className="bg-red-600 px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center">
+                    <Phone size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-lg">Emergency Help</h3>
+                    <p className="text-red-100 text-xs">India emergency numbers</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSosOpen(false)}
+                  className="p-2 hover:bg-white/20 rounded-xl transition-colors"
+                >
+                  <X size={18} className="text-white" />
+                </button>
+              </div>
+            </div>
+
+            {/* Numbers */}
+            <div className="p-5 space-y-3">
+              {emergencyNumbers.map(({ name, number, primary }) => (
+                <div
+                  key={number}
+                  className={`flex items-center justify-between p-3.5 rounded-2xl ${
+                    primary ? 'bg-red-50 border-2 border-red-200' : 'bg-slate-50 border border-slate-100'
+                  }`}
+                >
+                  <div>
+                    <p className={`text-xs font-medium ${primary ? 'text-red-600' : 'text-slate-500'}`}>{name}</p>
+                    <p className={`text-2xl font-black tracking-tight ${primary ? 'text-red-700' : 'text-slate-800'}`}>
+                      {number}
+                    </p>
+                  </div>
+                  <a
+                    href={`tel:${number}`}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                      primary
+                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-600/30'
+                        : 'bg-slate-800 hover:bg-slate-900 text-white'
+                    }`}
+                  >
+                    <Phone size={14} />
+                    Call
+                  </a>
+                </div>
+              ))}
+            </div>
+
+            {/* Stay calm tip */}
+            <div className="px-5 pb-5">
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-3">
+                <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-800 leading-relaxed">
+                  <p className="font-semibold mb-1">Stay calm</p>
+                  <p>Give your exact location. Stay on the line. Do not hang up until help arrives.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
