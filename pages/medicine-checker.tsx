@@ -163,7 +163,7 @@ export default function MedicineChecker() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Medicine Interaction Checker</h1>
             <p className="text-slate-500 text-sm mt-1">
-              Powered by Claude AI — add your medications to check for interactions, contraindications, and safety concerns.
+              Powered by AI — add your medications to check for interactions, contraindications, and safety concerns.
             </p>
           </div>
         </div>
@@ -247,7 +247,7 @@ export default function MedicineChecker() {
             {loading ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                Analyzing with Claude AI…
+                Analyzing with AI…
               </>
             ) : (
               <>
@@ -367,7 +367,7 @@ export default function MedicineChecker() {
             {/* Powered by */}
             <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
               <ShieldCheck size={13} />
-              Powered by Anthropic Claude AI · Not a substitute for professional medical advice
+              Powered by OpenAI GPT-4o · Not a substitute for professional medical advice
             </div>
           </div>
         )}
@@ -379,7 +379,7 @@ export default function MedicineChecker() {
             <div className="space-y-3">
               {[
                 { step: '1', text: 'Add the medicines you are taking or planning to take' },
-                { step: '2', text: 'Click "Check Interactions" to analyze with Claude AI' },
+                { step: '2', text: 'Click "Check Interactions" to analyze with AI' },
                 { step: '3', text: 'Review the safety report with interaction details and recommendations' },
               ].map(({ step, text }) => (
                 <div key={step} className="flex items-center gap-3 text-sm text-slate-600">

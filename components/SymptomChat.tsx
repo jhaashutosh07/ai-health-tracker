@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Loader2, Mic, MicOff, ImagePlus } from 'lucide-react'
+import { Send, Bot, User, Loader2, Mic, MicOff, ImagePlus, Volume2, VolumeX } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { getT } from '@/lib/i18n/translations'
 
@@ -57,6 +57,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
   const [input, setInput] = useState(initialMessage || '')
   const [loading, setLoading] = useState(false)
   const [isListening, setIsListening] = useState(false)
+  const [speakEnabled, setSpeakEnabled] = useState(false)
   const [imageAnalyzing, setImageAnalyzing] = useState(false)
   const [completed, setCompleted] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -65,7 +66,24 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   useEffect(() => { scrollToBottom() }, [messages])
-  useEffect(() => () => { recognitionRef.current?.stop() }, [])
+  useEffect(() => () => {
+    recognitionRef.current?.stop()
+    if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
+  }, [])
+
+  const speak = (text: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = SPEECH_LANG[lang] || 'en-IN'
+    utterance.rate = 0.95
+    window.speechSynthesis.speak(utterance)
+  }
+
+  const toggleSpeak = () => {
+    if (speakEnabled) window.speechSynthesis?.cancel()
+    setSpeakEnabled(v => !v)
+  }
 
   const handleSend = async () => {
     if (!input.trim() || loading) return
@@ -94,6 +112,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
 
       if (cleanMessage) {
         setMessages([...updatedMessages, { role: 'assistant', content: cleanMessage }])
+        if (speakEnabled) speak(cleanMessage)
       }
 
       if (data.assessment && data.completed) {
@@ -225,6 +244,9 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
           </button>
           <button onClick={toggleVoice} disabled={loading || completed} title={isListening ? 'Stop recording' : 'Speak your symptoms'} className={`p-2.5 rounded-xl disabled:opacity-40 transition-colors flex-shrink-0 ${isListening ? 'bg-red-100 hover:bg-red-200 text-red-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>
             {isListening ? <MicOff size={17} /> : <Mic size={17} />}
+          </button>
+          <button onClick={toggleSpeak} title={speakEnabled ? 'Stop reading replies aloud' : 'Read replies aloud'} className={`p-2.5 rounded-xl transition-colors flex-shrink-0 ${speakEnabled ? 'bg-sky-100 hover:bg-sky-200 text-sky-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}>
+            {speakEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
           </button>
           <input
             type="text"

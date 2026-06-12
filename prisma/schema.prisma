@@ -55,6 +55,7 @@ model User {
   medicalHistory MedicalHistory[]
   medicalDocuments MedicalDocument[]
   reviews       Review[]
+  medications   Medication[]
 
   @@map("users")
 }
@@ -111,6 +112,11 @@ model SymptomLog {
   aiDiagnosis   String?       // AI-suggested conditions
   recommendation String?      // AI recommendation (see doctor, self-care, emergency)
   suggestedMedicines String?  // AI-suggested medicines with dosage (stored as JSON)
+
+  // Follow-up check-in (for MEDIUM+ severity assessments)
+  followUpStatus      String?   // PENDING (awaiting response), BETTER, SAME, WORSE
+  followUpSentAt      DateTime? // When the check-in was surfaced/emailed
+  followUpRespondedAt DateTime?
 
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -223,6 +229,43 @@ model MedicalDocument {
   updatedAt     DateTime  @updatedAt
 
   @@map("medical_documents")
+}
+
+model Medication {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name          String    // e.g. "Paracetamol (Dolo 650)"
+  dosage        String    // e.g. "650mg"
+  frequency     String    // e.g. "Twice daily"
+  times         String    // Scheduled times of day (stored as JSON array, e.g. ["08:00","20:00"])
+  instructions  String?   // e.g. "After food"
+
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  active        Boolean   @default(true)
+
+  doseLogs      MedicationDoseLog[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("medications")
+}
+
+model MedicationDoseLog {
+  id            String     @id @default(cuid())
+  medicationId  String
+  medication    Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  date          String     // YYYY-MM-DD
+  time          String     // Scheduled time HH:mm
+  status        String     // TAKEN, MISSED, SKIPPED
+  loggedAt      DateTime   @default(now())
+
+  @@unique([medicationId, date, time])
+  @@map("medication_dose_logs")
 }
 
 model Review {

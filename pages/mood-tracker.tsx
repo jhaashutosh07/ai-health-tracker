@@ -305,7 +305,7 @@ export default function MoodTracker() {
                 <div className="card p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <Brain size={15} className="text-violet-500" />
-                    <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Claude's Take</p>
+                    <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">AI Insight</p>
                   </div>
                   <p className="text-sm text-slate-700 leading-relaxed">{insights.summary}</p>
                 </div>
@@ -361,7 +361,7 @@ export default function MoodTracker() {
                 </div>
                 <p className="font-semibold text-slate-800 text-sm mb-1">AI Mental Health Insights</p>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Select your mood and click "Get AI Insights" to receive personalized wellbeing guidance from Claude.
+                  Select your mood and click "Get AI Insights" to receive personalized wellbeing guidance from AI.
                 </p>
               </div>
             )}

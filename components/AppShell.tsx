@@ -41,6 +41,7 @@ const patientNavKeys = [
   { key: 'nav.symptomCheck',    href: '/symptom-check',      icon: ClipboardList },
   { key: 'nav.healthPatterns',  href: '/symptom-patterns',   icon: TrendingUp },
   { key: 'nav.medicineChecker', href: '/medicine-checker',   icon: Pill },
+  { key: 'nav.medications',     href: '/medications',        icon: Pill },
   { key: 'nav.moodTracker',     href: '/mood-tracker',       icon: Smile },
   { key: 'nav.appointments',    href: '/appointments',       icon: Calendar },
   { key: 'nav.findDoctors',     href: '/find-doctors',       icon: Users },

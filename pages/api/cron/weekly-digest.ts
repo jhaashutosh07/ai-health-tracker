@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
-import { openai } from '@/lib/claude'
+import { openai } from '@/lib/openai'
 import nodemailer from 'nodemailer'
 
 // Secured — only callable by Vercel Cron with the CRON_SECRET header

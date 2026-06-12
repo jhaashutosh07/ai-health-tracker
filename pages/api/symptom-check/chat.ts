@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
-import { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT } from '@/lib/claude'
+import { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT } from '@/lib/openai'
 import { AI_LANG_INSTRUCTION, LangCode } from '@/lib/i18n/translations'
 import { prisma } from '@/lib/prisma'
 

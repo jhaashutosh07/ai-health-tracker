@@ -198,7 +198,7 @@ export default function MedicalRecords() {
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Medical Records</h1>
             <p className="text-slate-500 text-sm mt-0.5">
-              AI-powered OCR — upload any medical document image and Claude will extract & summarize it
+              AI-powered OCR — upload any medical document image and AI will extract & summarize it
             </p>
           </div>
           <button
@@ -219,7 +219,7 @@ export default function MedicalRecords() {
               </div>
               <div>
                 <h2 className="font-semibold text-slate-800">AI Document Scanner</h2>
-                <p className="text-xs text-slate-500">Upload an image — Claude Vision will read and summarize it</p>
+                <p className="text-xs text-slate-500">Upload an image — AI vision will read and summarize it</p>
               </div>
             </div>
 
@@ -324,7 +324,7 @@ export default function MedicalRecords() {
                 className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm"
               >
                 {scanning ? (
-                  <><Loader2 size={16} className="animate-spin" /> Scanning with Claude AI…</>
+                  <><Loader2 size={16} className="animate-spin" /> Scanning with AI…</>
                 ) : (
                   <><Sparkles size={16} /> Scan & Save Document</>
                 )}
@@ -341,7 +341,7 @@ export default function MedicalRecords() {
             </h3>
             <ul className="text-sm text-sky-700 space-y-1.5">
               <li>• Take a photo of any lab report, prescription, or scan result</li>
-              <li>• Claude Vision reads all text from the image (even handwritten notes)</li>
+              <li>• AI vision reads all text from the image (even handwritten notes)</li>
               <li>• Extracts patient details, key values, and provides a plain-English summary</li>
               <li>• All extracted text is saved — searchable and readable anytime</li>
             </ul>

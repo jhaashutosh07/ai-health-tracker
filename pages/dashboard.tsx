@@ -38,6 +38,14 @@ interface SymptomLog {
   createdAt: string
 }
 
+interface FollowUp {
+  symptomLogId: string
+  symptoms: string[]
+  severity: string
+  recommendation: string | null
+  checkedAt: string
+}
+
 const statusMeta: Record<string, { label: string; cls: string; icon: typeof CheckCircle2 }> = {
   PENDING:   { label: 'Pending',   cls: 'badge-pending',   icon: Clock },
   CONFIRMED: { label: 'Confirmed', cls: 'badge-confirmed', icon: CheckCircle2 },
@@ -60,6 +68,9 @@ export default function Dashboard() {
   const [recentSymptoms, setRecentSymptoms] = useState<SymptomLog[]>([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
+  const [followUp, setFollowUp] = useState<FollowUp | null>(null)
+  const [followUpResult, setFollowUpResult] = useState<{ escalate: boolean; message: string } | null>(null)
+  const [followUpSending, setFollowUpSending] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -69,13 +80,30 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     setLoading(true)
-    const [aptRes, symRes] = await Promise.all([
+    const [aptRes, symRes, fuRes] = await Promise.all([
       fetch('/api/appointments'),
       fetch('/api/symptom-check/history?limit=5'),
+      fetch('/api/symptom-check/follow-up'),
     ])
     if (aptRes.ok) setAppointments((await aptRes.json()).appointments || [])
     if (symRes.ok) setRecentSymptoms((await symRes.json()).logs || [])
+    if (fuRes.ok) setFollowUp((await fuRes.json()).followUp || null)
     setLoading(false)
+  }
+
+  const respondToFollowUp = async (response: 'BETTER' | 'SAME' | 'WORSE') => {
+    if (!followUp || followUpSending) return
+    setFollowUpSending(true)
+    try {
+      const res = await fetch('/api/symptom-check/follow-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symptomLogId: followUp.symptomLogId, response }),
+      })
+      if (res.ok) setFollowUpResult(await res.json())
+    } finally {
+      setFollowUpSending(false)
+    }
   }
 
   const handleLiveUpdate = useCallback((update: { appointmentId: string; status: string }) => {
@@ -182,6 +210,55 @@ export default function Dashboard() {
       )}
 
       <div className="p-6 lg:p-8 space-y-8">
+        {/* Follow-up check-in banner */}
+        {followUp && (
+          <div className="card p-5 border-sky-200 bg-gradient-to-r from-sky-50 to-indigo-50">
+            {!followUpResult ? (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center flex-shrink-0">
+                  <Bell size={18} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-900 text-sm">
+                    Checking in on your{' '}
+                    <span className={`badge ${(severityMeta[followUp.severity] || severityMeta.LOW).cls}`}>{followUp.severity}</span>{' '}
+                    symptom check from {new Date(followUp.checkedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5 truncate">
+                    {followUp.symptoms.slice(0, 4).join(', ')} — how are you feeling now?
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => respondToFollowUp('BETTER')} disabled={followUpSending}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors disabled:opacity-50">
+                    😊 Better
+                  </button>
+                  <button onClick={() => respondToFollowUp('SAME')} disabled={followUpSending}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors disabled:opacity-50">
+                    😐 Same
+                  </button>
+                  <button onClick={() => respondToFollowUp('WORSE')} disabled={followUpSending}
+                    className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold transition-colors disabled:opacity-50">
+                    😟 Worse
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${followUpResult.escalate ? 'bg-red-500' : 'bg-emerald-500'}`}>
+                  {followUpResult.escalate ? <AlertCircle size={18} className="text-white" /> : <CheckCircle2 size={18} className="text-white" />}
+                </div>
+                <p className="flex-1 text-sm text-slate-700">{followUpResult.message}</p>
+                {followUpResult.escalate && (
+                  <Link href="/appointments/new" className="btn btn-primary text-xs flex-shrink-0 !bg-red-600 hover:!bg-red-700">
+                    Book a doctor now
+                  </Link>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Welcome */}
         <div className="flex items-start justify-between">
           <div>

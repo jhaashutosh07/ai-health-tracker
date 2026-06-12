@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
-import { openai } from '@/lib/claude'
+import { openai } from '@/lib/openai'
 import { prisma } from '@/lib/prisma'
 
 export const config = {

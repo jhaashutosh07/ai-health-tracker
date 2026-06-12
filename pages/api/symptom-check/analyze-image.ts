@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
-import { openai } from '@/lib/claude'
+import { openai } from '@/lib/openai'
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
