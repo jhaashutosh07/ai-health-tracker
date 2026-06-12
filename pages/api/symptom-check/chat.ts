@@ -13,7 +13,10 @@ async function callAI(messages: { role: 'user' | 'assistant'; content: string }[
 
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
-    max_tokens: 1500,
+    // The final assessment JSON (conditions + medicines + tips, sometimes in
+    // Devanagari/Tamil script) regularly exceeds 1500 tokens — a truncated
+    // JSON means no assessment card and no saved symptom log.
+    max_tokens: 4000,
     messages: [
       { role: 'system', content: systemContent },
       ...messages,
@@ -38,23 +41,40 @@ function stripForDisplay(text: string) {
   return lines.join('\n').trim()
 }
 
+function tryParse(str: string): any | null {
+  try { return JSON.parse(str) } catch { }
+  // Common model slip: trailing commas before } or ]
+  try { return JSON.parse(str.replace(/,\s*([}\]])/g, '$1')) } catch { }
+  return null
+}
+
 function extractAssessment(text: string) {
-  const codeBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/)
-  if (codeBlockMatch) {
-    try {
-      const parsed = JSON.parse(codeBlockMatch[1])
-      if (parsed.completed === true) return parsed
-    } catch { }
+  const candidates: string[] = []
+
+  const codeBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/)
+  if (codeBlockMatch) candidates.push(codeBlockMatch[1])
+
+  // Balanced-brace scan picks up bare JSON objects (and survives text after them)
+  let depth = 0
+  let start = -1
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '{') {
+      if (depth === 0) start = i
+      depth++
+    } else if (ch === '}') {
+      depth--
+      if (depth === 0 && start !== -1) {
+        candidates.push(text.slice(start, i + 1))
+        start = -1
+      }
+    }
   }
 
-  const bareMatch = text.match(/\{[\s\S]*?"completed"\s*:\s*true[\s\S]*?\}/)
-  if (bareMatch) {
-    try {
-      const parsed = JSON.parse(bareMatch[0])
-      if (parsed.completed === true) return parsed
-    } catch { }
+  for (const candidate of candidates) {
+    const parsed = tryParse(candidate)
+    if (parsed && parsed.completed === true) return parsed
   }
-
   return null
 }
 
@@ -82,7 +102,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
   }
 
-  const assessment = extractAssessment(aiResponse)
+  let assessment = extractAssessment(aiResponse)
+
+  // The model clearly attempted a final assessment but the JSON didn't parse
+  // (usually truncation) — ask it once to resend just the JSON block.
+  if (!assessment && /"completed"|```json/.test(aiResponse)) {
+    try {
+      const repaired = await callAI(
+        [
+          ...messages.map((m: any) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+          { role: 'assistant', content: aiResponse },
+          { role: 'user', content: 'Your JSON assessment block was malformed or cut off. Resend ONLY the complete ```json assessment block with "completed": true — no other text.' },
+        ],
+        (lang as LangCode) || 'en'
+      )
+      assessment = extractAssessment(repaired)
+    } catch { /* fall through to normal incomplete handling */ }
+  }
 
   if (assessment) {
     try {
@@ -93,10 +129,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           description: messages.map((m: any) => `${m.role}: ${m.content}`).join('\n'),
           chatHistory: JSON.stringify(messages),
           severity: assessment.severity || 'LOW',
+          // possibleConditions entries are {name, probability, reasoning} objects
           aiDiagnosis: Array.isArray(assessment.possibleConditions)
-            ? assessment.possibleConditions.join(', ')
+            ? assessment.possibleConditions
+                .map((c: any) => (typeof c === 'string' ? c : c?.name))
+                .filter(Boolean)
+                .join(', ')
             : '',
           recommendation: assessment.advice || '',
+          suggestedMedicines: assessment.medicineSuggestions
+            ? JSON.stringify(assessment.medicineSuggestions)
+            : null,
         },
       })
 
