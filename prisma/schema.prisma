@@ -56,6 +56,7 @@ model User {
   medicalDocuments MedicalDocument[]
   reviews       Review[]
   medications   Medication[]
+  vitalReadings VitalReading[]
 
   @@map("users")
 }
@@ -150,10 +151,49 @@ model Appointment {
   emailSent     Boolean           @default(false)
   smsSent       Boolean           @default(false)
 
+  prescription  Prescription?
+
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
   @@map("appointments")
+}
+
+model Prescription {
+  id            String      @id @default(cuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  diagnosis     String?
+  notes         String?     // General advice from the doctor
+  items         String      // Prescribed medicines (stored as JSON array of {name,dosage,frequency,times,duration,instructions})
+
+  importedAt    DateTime?   // When the patient imported the items into their medication tracker
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@map("prescriptions")
+}
+
+model VitalReading {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        String   // BP, SUGAR, WEIGHT, SPO2, TEMPERATURE, PULSE
+  systolic    Float?   // BP only
+  diastolic   Float?   // BP only
+  value       Float?   // All other types
+  unit        String   // mmHg, mg/dL, kg, %, °F, bpm
+  context     String?  // e.g. FASTING / POST_MEAL for sugar
+  notes       String?
+
+  recordedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([userId, type, recordedAt])
+  @@map("vital_readings")
 }
 
 model MedicalHistory {

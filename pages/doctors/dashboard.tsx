@@ -12,11 +12,23 @@ import { useAppointmentUpdates } from '@/hooks/useAppointmentUpdates'
 
 interface Patient { id: string; name: string; email: string; phone: string | null }
 interface SymptomLog { symptoms: string; severity: string; description: string }
+interface Prescription { id: string; diagnosis: string | null; notes: string | null; items: string; importedAt: string | null }
 interface Appointment {
   id: string; type: string; status: string; appointmentDate: string
   appointmentTime: string; reason: string; notes: string | null
-  patient: Patient; symptomLog: SymptomLog | null
+  patient: Patient; symptomLog: SymptomLog | null; prescription: Prescription | null
 }
+
+interface RxRow { name: string; dosage: string; frequency: string; duration: string; instructions: string }
+const emptyRxRow = (): RxRow => ({ name: '', dosage: '', frequency: 'BD', duration: '5 days', instructions: '' })
+const RX_FREQUENCIES = [
+  { value: 'OD',  label: 'OD — once daily' },
+  { value: 'BD',  label: 'BD — twice daily' },
+  { value: 'TDS', label: 'TDS — 3x daily' },
+  { value: 'QID', label: 'QID — 4x daily' },
+  { value: 'HS',  label: 'HS — at bedtime' },
+  { value: 'SOS', label: 'SOS — as needed' },
+]
 interface DoctorProfile {
   consultationFee: number | null; isAvailable: boolean; rating: number | null; reviewCount: number
 }
@@ -60,6 +72,59 @@ export default function DoctorDashboard() {
 
   // AI brief state per appointment
   const [briefs, setBriefs] = useState<Record<string, { loading: boolean; text: string; error?: string }>>({})
+
+  // Digital prescription builder state per appointment
+  const [rxRows, setRxRows] = useState<Record<string, RxRow[]>>({})
+  const [rxDiagnosis, setRxDiagnosis] = useState<Record<string, string>>({})
+  const [rxAdvice, setRxAdvice] = useState<Record<string, string>>({})
+  const [rxSaving, setRxSaving] = useState<string | null>(null)
+
+  const getRxRows = (apt: Appointment): RxRow[] => {
+    if (rxRows[apt.id]) return rxRows[apt.id]
+    if (apt.prescription) {
+      try {
+        const items = JSON.parse(apt.prescription.items)
+        if (Array.isArray(items) && items.length > 0) {
+          return items.map((it: any) => ({
+            name: it.name || '', dosage: it.dosage || '', frequency: it.frequency || 'BD',
+            duration: it.duration || '', instructions: it.instructions || '',
+          }))
+        }
+      } catch { /* fall through */ }
+    }
+    return [emptyRxRow()]
+  }
+
+  const updateRxRow = (aptId: string, base: RxRow[], index: number, field: keyof RxRow, value: string) => {
+    const rows = (rxRows[aptId] || base).map((r, i) => (i === index ? { ...r, [field]: value } : r))
+    setRxRows(prev => ({ ...prev, [aptId]: rows }))
+  }
+
+  const savePrescription = async (apt: Appointment) => {
+    const rows = getRxRows(apt).filter(r => r.name.trim())
+    if (rows.length === 0) { showToast('Add at least one medicine to the prescription'); return }
+    setRxSaving(apt.id)
+    try {
+      const res = await fetch('/api/prescriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointmentId: apt.id,
+          diagnosis: rxDiagnosis[apt.id] ?? apt.prescription?.diagnosis ?? '',
+          notes: rxAdvice[apt.id] ?? apt.prescription?.notes ?? '',
+          items: rows,
+        }),
+      })
+      if (res.ok) {
+        showToast('Digital prescription saved — patient can now import it')
+        await fetchAppointments()
+      } else {
+        showToast((await res.json()).message || 'Failed to save prescription')
+      }
+    } finally {
+      setRxSaving(null)
+    }
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -437,11 +502,73 @@ export default function DoctorDashboard() {
                         </div>
                       )}
 
-                      {/* Prescription + notes */}
+                      {/* ── Digital Prescription ── */}
+                      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <FileText size={14} className="text-emerald-600" />
+                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">Digital Prescription</p>
+                            {apt.prescription && (
+                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${apt.prescription.importedAt ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'}`}>
+                                {apt.prescription.importedAt ? 'Imported by patient' : 'Saved'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="p-4 space-y-3">
+                          <input
+                            value={rxDiagnosis[apt.id] ?? apt.prescription?.diagnosis ?? ''}
+                            onChange={e => setRxDiagnosis(prev => ({ ...prev, [apt.id]: e.target.value }))}
+                            placeholder="Diagnosis, e.g. Acute viral pharyngitis"
+                            className="input text-sm w-full"
+                          />
+                          {getRxRows(apt).map((row, i) => (
+                            <div key={i} className="grid grid-cols-2 lg:grid-cols-5 gap-2 items-start">
+                              <input value={row.name} onChange={e => updateRxRow(apt.id, getRxRows(apt), i, 'name', e.target.value)} placeholder="Medicine, e.g. Paracetamol 650" className="input text-xs lg:col-span-1 col-span-2" />
+                              <input value={row.dosage} onChange={e => updateRxRow(apt.id, getRxRows(apt), i, 'dosage', e.target.value)} placeholder="Dose, e.g. 1 tab" className="input text-xs" />
+                              <select value={row.frequency} onChange={e => updateRxRow(apt.id, getRxRows(apt), i, 'frequency', e.target.value)} className="input text-xs">
+                                {RX_FREQUENCIES.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                              </select>
+                              <input value={row.duration} onChange={e => updateRxRow(apt.id, getRxRows(apt), i, 'duration', e.target.value)} placeholder="Duration, e.g. 5 days" className="input text-xs" />
+                              <div className="flex gap-1.5">
+                                <input value={row.instructions} onChange={e => updateRxRow(apt.id, getRxRows(apt), i, 'instructions', e.target.value)} placeholder="After food" className="input text-xs flex-1" />
+                                {getRxRows(apt).length > 1 && (
+                                  <button onClick={() => setRxRows(prev => ({ ...prev, [apt.id]: getRxRows(apt).filter((_, j) => j !== i) }))}
+                                    className="p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 flex-shrink-0">
+                                    <XCircle size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <button onClick={() => setRxRows(prev => ({ ...prev, [apt.id]: [...getRxRows(apt), emptyRxRow()] }))}
+                              className="text-xs font-semibold text-sky-600 hover:text-sky-700">
+                              + Add medicine
+                            </button>
+                            <button onClick={() => savePrescription(apt)} disabled={rxSaving === apt.id}
+                              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition-all disabled:opacity-50">
+                              {rxSaving === apt.id ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+                              {apt.prescription ? 'Update Prescription' : 'Save Prescription'}
+                            </button>
+                          </div>
+                          <input
+                            value={rxAdvice[apt.id] ?? apt.prescription?.notes ?? ''}
+                            onChange={e => setRxAdvice(prev => ({ ...prev, [apt.id]: e.target.value }))}
+                            placeholder="General advice, e.g. Rest, plenty of fluids, review after 5 days"
+                            className="input text-xs w-full"
+                          />
+                          <p className="text-[10px] text-slate-400">
+                            The patient sees this on their appointment and can import it into their medication tracker with one tap — reminders and interaction checks start automatically.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Free-text notes */}
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <label className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                            <FileText size={12} /> Consultation Notes & Prescription
+                            <FileText size={12} /> Consultation Notes
                           </label>
                         </div>
 

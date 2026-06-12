@@ -37,13 +37,16 @@ import {
   Sun,
   BellOff,
   HeartPulse,
+  Brain,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { LANGUAGES } from '@/lib/i18n/translations'
 
 const patientNavKeys = [
   { key: 'nav.dashboard',       href: '/dashboard',          icon: Activity },
+  { key: 'nav.askAI',           href: '/health-chat',        icon: Brain },
   { key: 'nav.symptomCheck',    href: '/symptom-check',      icon: ClipboardList },
+  { key: 'nav.vitals',          href: '/vitals',             icon: HeartPulse },
   { key: 'nav.healthPatterns',  href: '/symptom-patterns',   icon: TrendingUp },
   { key: 'nav.medicineChecker', href: '/medicine-checker',   icon: Pill },
   { key: 'nav.medications',     href: '/medications',        icon: Pill },

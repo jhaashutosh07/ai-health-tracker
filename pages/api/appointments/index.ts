@@ -24,6 +24,7 @@ export default async function handler(
       },
       include: {
         symptomLog: true,
+        prescription: true,
         doctor: {
           select: {
             id: true,

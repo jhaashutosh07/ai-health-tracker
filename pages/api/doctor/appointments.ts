@@ -33,6 +33,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             select: { id: true, name: true, email: true, phone: true },
           },
           symptomLog: true,
+          prescription: true,
         },
         orderBy: { appointmentDate: 'desc' },
       })

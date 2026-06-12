@@ -15,8 +15,20 @@ import {
   XCircle,
   AlertCircle,
   ArrowRight,
+  FileText,
+  Pill,
+  Loader2,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
+
+interface Prescription {
+  id: string
+  diagnosis: string | null
+  notes: string | null
+  items: string
+  importedAt: string | null
+}
 
 interface Appointment {
   id: string
@@ -35,6 +47,12 @@ interface Appointment {
     symptoms: string
     severity: string
   } | null
+  prescription: Prescription | null
+}
+
+const RX_FREQUENCY_LABELS: Record<string, string> = {
+  OD: 'Once daily', BD: 'Twice daily', TDS: '3x daily', QID: '4x daily',
+  HS: 'At bedtime', SOS: 'As needed',
 }
 
 type FilterTab = 'ALL' | 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED'
@@ -64,6 +82,28 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<FilterTab>('ALL')
+  const [importing, setImporting] = useState<string | null>(null)
+
+  const importPrescription = async (prescriptionId: string) => {
+    if (importing) return
+    setImporting(prescriptionId)
+    try {
+      const res = await fetch('/api/prescriptions/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prescriptionId }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        toast.success(data.message || 'Prescription imported to your medication tracker')
+        fetchAppointments()
+      } else {
+        toast.error(data.message || 'Import failed')
+      }
+    } finally {
+      setImporting(null)
+    }
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -273,6 +313,54 @@ export default function Appointments() {
                         <p className="text-sm text-slate-700">{apt.notes}</p>
                       </div>
                     )}
+
+                    {/* Digital prescription */}
+                    {apt.prescription && (() => {
+                      let rxItems: { name: string; dosage: string; frequency: string; duration: string; instructions?: string }[] = []
+                      try { rxItems = JSON.parse(apt.prescription.items) } catch { rxItems = [] }
+                      if (rxItems.length === 0) return null
+                      const imported = !!apt.prescription.importedAt
+                      return (
+                        <div className="mt-3 bg-emerald-50 border border-emerald-100 rounded-xl overflow-hidden">
+                          <div className="px-4 py-2.5 flex items-center justify-between gap-2 flex-wrap border-b border-emerald-100">
+                            <p className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                              <FileText size={13} /> Digital Prescription
+                              {apt.prescription.diagnosis && <span className="font-medium text-emerald-700">— {apt.prescription.diagnosis}</span>}
+                            </p>
+                            {imported ? (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700">
+                                <CheckCircle2 size={11} /> In your medication tracker
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => importPrescription(apt.prescription!.id)}
+                                disabled={importing === apt.prescription.id}
+                                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50"
+                              >
+                                {importing === apt.prescription.id ? <Loader2 size={12} className="animate-spin" /> : <Pill size={12} />}
+                                Add to Medication Tracker
+                              </button>
+                            )}
+                          </div>
+                          <div className="px-4 py-3 space-y-1.5">
+                            {rxItems.map((it, i) => (
+                              <div key={i} className="flex items-baseline gap-2 text-xs flex-wrap">
+                                <span className="font-bold text-slate-900">{i + 1}. {it.name}</span>
+                                {it.dosage && <span className="text-slate-600">{it.dosage}</span>}
+                                <span className="text-slate-600">{RX_FREQUENCY_LABELS[it.frequency] || it.frequency}</span>
+                                {it.duration && <span className="text-slate-500">× {it.duration}</span>}
+                                {it.instructions && <span className="text-slate-400">({it.instructions})</span>}
+                              </div>
+                            ))}
+                            {apt.prescription.notes && (
+                              <p className="text-[11px] text-emerald-800 pt-1.5 border-t border-emerald-100 mt-2">
+                                <span className="font-semibold">Advice:</span> {apt.prescription.notes}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* If online and pending — info about how to join */}
                     {isOnline && apt.status === 'PENDING' && (

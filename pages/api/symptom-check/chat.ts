@@ -22,6 +22,22 @@ async function callAI(messages: { role: 'user' | 'assistant'; content: string }[
   return response.choices[0]?.message?.content || ''
 }
 
+// Strip JSON blocks and any dangling lead-in the model wrote pointing at them
+// (e.g. "Here's what I think based on what you've shared:")
+function stripForDisplay(text: string) {
+  let clean = text
+    .replace(/```json[\s\S]*?```/g, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .trim()
+  const lines = clean.split('\n')
+  while (lines.length > 0) {
+    const last = lines[lines.length - 1].trim()
+    if (last === '' || /[:：]$/.test(last) || /^(here('|’)s|based on what)/i.test(last)) lines.pop()
+    else break
+  }
+  return lines.join('\n').trim()
+}
+
 function extractAssessment(text: string) {
   const codeBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/)
   if (codeBlockMatch) {
@@ -84,13 +100,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       })
 
-      const displayMessage = aiResponse
-        .replace(/```json[\s\S]*?```/g, '')
-        .replace(/```[\s\S]*?```/g, '')
-        .trim()
+      const displayMessage = stripForDisplay(aiResponse)
 
       return res.status(200).json({
-        message: displayMessage || "I've completed your assessment. Please see the summary below.",
+        message: displayMessage || "I've completed your assessment — the full breakdown is in the card that just appeared.",
         assessment,
         symptomLogId: symptomLog.id,
         completed: true,
@@ -98,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (dbErr) {
       console.error('DB save error:', dbErr)
       return res.status(200).json({
-        message: aiResponse.replace(/```json[\s\S]*?```/g, '').replace(/```[\s\S]*?```/g, '').trim(),
+        message: stripForDisplay(aiResponse),
         assessment,
         completed: true,
       })
