@@ -15,7 +15,10 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
+import ConfirmDialog from '@/components/ConfirmDialog'
+import { SkeletonMedications } from '@/components/Skeleton'
 
 interface DoseLog {
   id: string
@@ -54,6 +57,7 @@ export default function Medications() {
   const [saving, setSaving] = useState(false)
   const [checking, setChecking] = useState(false)
   const [interactions, setInteractions] = useState<InteractionResult | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
 
   // Form state
   const [name, setName] = useState('')
@@ -86,21 +90,27 @@ export default function Medications() {
         setName(''); setDosage(''); setInstructions(''); setTimes(['08:00'])
         setShowForm(false)
         setInteractions(null)
+        toast.success('Medicine added to your tracker')
         fetchMedications()
       } else {
-        alert((await res.json()).message || 'Failed to add medication')
+        toast.error((await res.json()).message || 'Failed to add medication')
       }
     } finally {
       setSaving(false)
     }
   }
 
-  const removeMedication = async (id: string, medName: string) => {
-    if (!confirm(`Remove ${medName} from your medications?`)) return
+  const removeMedication = async () => {
+    if (!pendingDelete) return
+    const { id, name: medName } = pendingDelete
+    setPendingDelete(null)
     const res = await fetch(`/api/medications/${id}`, { method: 'DELETE' })
     if (res.ok) {
       setInteractions(null)
+      toast.success(`${medName} removed`)
       fetchMedications()
+    } else {
+      toast.error('Failed to remove medicine')
     }
   }
 
@@ -124,7 +134,7 @@ export default function Medications() {
         body: JSON.stringify({ medicines: medications.map(m => `${m.name} ${m.dosage}`) }),
       })
       if (res.ok) setInteractions(await res.json())
-      else alert((await res.json()).message || 'Interaction check failed')
+      else toast.error((await res.json()).message || 'Interaction check failed')
     } finally {
       setChecking(false)
     }
@@ -148,9 +158,7 @@ export default function Medications() {
   if (status === 'loading' || loading) {
     return (
       <AppShell title="My Medications">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="animate-spin text-sky-500" size={24} />
-        </div>
+        <SkeletonMedications />
       </AppShell>
     )
   }
@@ -333,7 +341,7 @@ export default function Medications() {
                           })}
                         </div>
                       </div>
-                      <button onClick={() => removeMedication(med.id, med.name)} className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0" title="Remove medicine">
+                      <button onClick={() => setPendingDelete({ id: med.id, name: med.name })} className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0" title="Remove medicine">
                         <Trash2 size={15} />
                       </button>
                     </div>
@@ -348,6 +356,16 @@ export default function Medications() {
           Powered by OpenAI GPT-4o · A daily reminder email is sent each morning with your schedule. Not a substitute for professional medical advice.
         </p>
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Remove medicine?"
+        message={`${pendingDelete?.name || 'This medicine'} and its dose history will be permanently removed from your tracker.`}
+        confirmLabel="Remove"
+        danger
+        onConfirm={removeMedication}
+        onCancel={() => setPendingDelete(null)}
+      />
     </AppShell>
   )
 }

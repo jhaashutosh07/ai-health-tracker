@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
+import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import {
   FileText,
   Upload,
@@ -152,11 +154,19 @@ export default function MedicalRecords() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this document?')) return
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+
+  const handleDelete = async () => {
+    if (!pendingDelete) return
+    const id = pendingDelete
+    setPendingDelete(null)
     const res = await fetch(`/api/medical-records/${id}`, { method: 'DELETE' })
-    if (res.ok) fetchDocuments()
-    else alert('Failed to delete')
+    if (res.ok) {
+      toast.success('Document deleted')
+      fetchDocuments()
+    } else {
+      toast.error('Failed to delete document')
+    }
   }
 
   const resetForm = () => {
@@ -412,7 +422,7 @@ export default function MedicalRecords() {
                         </button>
                       )}
                       <button
-                        onClick={() => handleDelete(doc.id)}
+                        onClick={() => setPendingDelete(doc.id)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                         title="Delete"
                       >
@@ -439,6 +449,16 @@ export default function MedicalRecords() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete this document?"
+        message="The document and its AI-extracted text will be permanently deleted."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </AppShell>
   )
 }

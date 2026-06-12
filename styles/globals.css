@@ -64,6 +64,16 @@
   .badge-confirmed { @apply bg-sky-50 text-sky-700 border border-sky-100; }
   .badge-completed { @apply bg-emerald-50 text-emerald-700 border border-emerald-100; }
   .badge-cancelled { @apply bg-slate-100 text-slate-500 border border-slate-200; }
+
+  /* Markdown styling for AI chat bubbles */
+  .chat-markdown p { @apply mb-2 last:mb-0; }
+  .chat-markdown strong { @apply font-bold; }
+  .chat-markdown ul { @apply list-disc pl-4 mb-2 space-y-1; }
+  .chat-markdown ol { @apply list-decimal pl-4 mb-2 space-y-1; }
+  .chat-markdown h1, .chat-markdown h2, .chat-markdown h3 { @apply font-bold mt-2 mb-1; }
+  .chat-markdown code { @apply bg-slate-200/70 px-1 py-0.5 rounded text-[12px]; }
+  .chat-markdown a { @apply text-sky-600 underline; }
+  .chat-markdown blockquote { @apply border-l-2 border-slate-300 pl-3 italic; }
 }
 
 @layer utilities {
@@ -142,3 +152,98 @@
 ::-webkit-scrollbar-track { background: #f8fafc; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ---------------------------------------------------------------------------
+   Dark mode (class strategy).
+   Pages are written with light slate utilities; rather than adding dark:
+   variants to every page, the common surface/text/border utilities are
+   remapped here under .dark. New pages get dark mode for free.
+--------------------------------------------------------------------------- */
+.dark body { background-color: #020617; color: #e2e8f0; }
+
+/* Components */
+.dark .card { background-color: #0f172a; border-color: #1e293b; }
+.dark .input { background-color: #0f172a; border-color: #334155; color: #f1f5f9; }
+.dark .input::placeholder { color: #64748b; }
+.dark .btn-outline { background-color: #0f172a; border-color: #334155; color: #cbd5e1; }
+.dark .btn-outline:hover { background-color: #1e293b; border-color: #475569; }
+.dark .btn-ghost { color: #cbd5e1; }
+.dark .btn-ghost:hover { background-color: #1e293b; color: #fff; }
+
+/* Surfaces */
+.dark .bg-white { background-color: #0f172a; }
+.dark .bg-slate-50 { background-color: #020617; }
+.dark .bg-slate-100 { background-color: #1e293b; }
+.dark .bg-slate-200 { background-color: #334155; }
+.dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.12); }
+.dark .bg-violet-50 { background-color: rgba(139, 92, 246, 0.12); }
+.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12); }
+.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.12); }
+.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.12); }
+.dark .bg-pink-50 { background-color: rgba(236, 72, 153, 0.12); }
+.dark .bg-rose-50 { background-color: rgba(244, 63, 94, 0.12); }
+.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.12); }
+.dark .bg-orange-50 { background-color: rgba(249, 115, 22, 0.12); }
+.dark .bg-fuchsia-50, .dark .bg-purple-50 { background-color: rgba(168, 85, 247, 0.12); }
+.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.12); }
+.dark .bg-slate-200\/80 { background-color: rgba(51, 65, 85, 0.8); }
+.dark .bg-slate-200\/70 { background-color: rgba(51, 65, 85, 0.7); }
+
+/* Gradient stops used on banners */
+.dark .from-sky-50 { --tw-gradient-from: rgba(14, 165, 233, 0.1) var(--tw-gradient-from-position); --tw-gradient-to: rgb(14 165 233 / 0); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.dark .to-indigo-50 { --tw-gradient-to: rgba(99, 102, 241, 0.1) var(--tw-gradient-to-position); }
+
+/* Text */
+.dark .text-slate-900, .dark .text-slate-800 { color: #f1f5f9; }
+.dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-slate-600 { color: #94a3b8; }
+.dark .text-slate-500 { color: #94a3b8; }
+.dark .text-slate-400 { color: #64748b; }
+.dark .text-slate-300 { color: #475569; }
+.dark .text-slate-200 { color: #334155; }
+
+/* Borders & dividers */
+.dark .border-slate-100, .dark .border-slate-200 { border-color: #1e293b; }
+.dark .divide-slate-50 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #1e293b; }
+.dark .border-sky-100, .dark .border-sky-200 { border-color: rgba(14, 165, 233, 0.3); }
+.dark .border-emerald-100, .dark .border-emerald-200 { border-color: rgba(16, 185, 129, 0.3); }
+.dark .border-red-100, .dark .border-red-200 { border-color: rgba(239, 68, 68, 0.3); }
+.dark .border-amber-100, .dark .border-amber-200 { border-color: rgba(245, 158, 11, 0.3); }
+.dark .border-violet-100, .dark .border-violet-200 { border-color: rgba(139, 92, 246, 0.3); }
+
+/* Hover states */
+.dark .hover\:bg-slate-50:hover { background-color: #1e293b; }
+.dark .hover\:bg-slate-100:hover { background-color: #1e293b; }
+.dark .hover\:bg-slate-200:hover { background-color: #334155; }
+.dark .hover\:bg-sky-50:hover { background-color: rgba(14, 165, 233, 0.15); }
+.dark .hover\:bg-red-50:hover { background-color: rgba(239, 68, 68, 0.15); }
+
+/* Badges — translucent fills for dark surfaces */
+.dark .badge-low, .dark .badge-completed { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.25); }
+.dark .badge-medium, .dark .badge-pending { background: rgba(245, 158, 11, 0.15); color: #fcd34d; border-color: rgba(245, 158, 11, 0.25); }
+.dark .badge-high { background: rgba(249, 115, 22, 0.15); color: #fdba74; border-color: rgba(249, 115, 22, 0.25); }
+.dark .badge-critical { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.25); }
+.dark .badge-confirmed { background: rgba(14, 165, 233, 0.15); color: #7dd3fc; border-color: rgba(14, 165, 233, 0.25); }
+.dark .badge-cancelled { background: rgba(100, 116, 139, 0.15); color: #94a3b8; border-color: rgba(100, 116, 139, 0.25); }
+
+/* Colored text accents that are too dark on dark surfaces */
+.dark .text-emerald-700 { color: #6ee7b7; }
+.dark .text-amber-700 { color: #fcd34d; }
+.dark .text-red-700 { color: #fca5a5; }
+.dark .text-sky-700 { color: #7dd3fc; }
+.dark .text-violet-700 { color: #c4b5fd; }
+.dark .text-emerald-600 { color: #34d399; }
+.dark .text-amber-600 { color: #fbbf24; }
+.dark .text-red-600 { color: #f87171; }
+.dark .text-sky-600 { color: #38bdf8; }
+.dark .text-violet-600 { color: #a78bfa; }
+
+/* Chat markdown code chips */
+.dark .chat-markdown code { background-color: #334155; }
+
+/* Scrollbar */
+.dark ::-webkit-scrollbar-track { background: #0f172a; }
+.dark ::-webkit-scrollbar-thumb { background: #334155; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+.dark .scrollbar-thin::-webkit-scrollbar-thumb { background: #334155; }

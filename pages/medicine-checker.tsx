@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
 
 interface Interaction {
@@ -126,7 +127,7 @@ export default function MedicineChecker() {
       if (!res.ok) throw new Error(data.message)
       setResult(data)
     } catch (err: any) {
-      alert(err.message || 'Failed to check interactions. Please try again.')
+      toast.error(err.message || 'Failed to check interactions. Please try again.')
     } finally {
       setLoading(false)
     }

@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Brain,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
 
 interface MoodEntry {
@@ -127,7 +128,7 @@ export default function MoodTracker() {
       if (!res.ok) throw new Error(data.message)
       setInsights(data)
     } catch (err: any) {
-      alert(err.message || 'Failed to generate insights. Please try again.')
+      toast.error(err.message || 'Failed to generate insights. Please try again.')
     } finally {
       setLoading(false)
     }

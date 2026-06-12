@@ -1,9 +1,10 @@
 'use client'
 
-import { ReactNode, useState, useCallback } from 'react'
+import { ReactNode, useState, useCallback, useEffect, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { toast } from 'sonner'
 import {
   Activity,
   ClipboardList,
@@ -32,6 +33,10 @@ import {
   Share2,
   TrendingUp,
   Languages,
+  Moon,
+  Sun,
+  BellOff,
+  HeartPulse,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { LANGUAGES } from '@/lib/i18n/translations'
@@ -77,6 +82,31 @@ interface AppShellProps {
   breadcrumb?: { label: string; href?: string }[]
 }
 
+interface NotificationItem {
+  id: string
+  type: 'followup' | 'appointment' | 'medication'
+  title: string
+  body: string
+  href: string
+  createdAt: string
+}
+
+const notifTypeMeta: Record<NotificationItem['type'], { icon: typeof Bell; cls: string }> = {
+  followup:    { icon: HeartPulse, cls: 'bg-sky-50 text-sky-500' },
+  appointment: { icon: Calendar,   cls: 'bg-emerald-50 text-emerald-500' },
+  medication:  { icon: Pill,       cls: 'bg-violet-50 text-violet-500' },
+}
+
+const LAST_SEEN_KEY = 'healthai_notif_last_seen'
+
+const bottomNavKeys = [
+  { key: 'nav.dashboard',    href: '/dashboard',     icon: Activity },
+  { key: 'nav.symptomCheck', href: '/symptom-check', icon: ClipboardList },
+  { key: 'nav.medications',  href: '/medications',   icon: Pill },
+  { key: 'nav.appointments', href: '/appointments',  icon: Calendar },
+  { key: 'nav.medicalRecords', href: '/medical-records', icon: FileText },
+]
+
 export default function AppShell({ children, title, breadcrumb }: AppShellProps) {
   const { data: session } = useSession()
   const router = useRouter()
@@ -87,6 +117,55 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
   const [locError, setLocError] = useState<string | null>(null)
 
   const [locatingFor, setLocatingFor] = useState<string | null>(null)
+
+  // Notifications
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [unseenCount, setUnseenCount] = useState(0)
+  const notifRef = useRef<HTMLDivElement>(null)
+
+  // Dark mode (class applied before paint by the _document script)
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    setDark(document.documentElement.classList.contains('dark'))
+  }, [])
+  const toggleDark = () => {
+    const next = !dark
+    setDark(next)
+    document.documentElement.classList.toggle('dark', next)
+    try { localStorage.setItem('theme', next ? 'dark' : 'light') } catch {}
+  }
+
+  useEffect(() => {
+    if (!session?.user) return
+    fetch('/api/notifications')
+      .then(r => (r.ok ? r.json() : { notifications: [] }))
+      .then(({ notifications: items }: { notifications: NotificationItem[] }) => {
+        setNotifications(items || [])
+        let lastSeen = 0
+        try { lastSeen = Number(localStorage.getItem(LAST_SEEN_KEY) || 0) } catch {}
+        setUnseenCount((items || []).filter(n => new Date(n.createdAt).getTime() > lastSeen).length)
+      })
+      .catch(() => {})
+  }, [session?.user?.id])
+
+  // Close the notification dropdown on outside click
+  useEffect(() => {
+    if (!notifOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [notifOpen])
+
+  const openNotifications = () => {
+    setNotifOpen(v => !v)
+    if (!notifOpen) {
+      setUnseenCount(0)
+      try { localStorage.setItem(LAST_SEEN_KEY, String(Date.now())) } catch {}
+    }
+  }
 
   const findNearby = useCallback((query: string) => {
     if (!navigator.geolocation) {
@@ -117,7 +196,7 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
     if (!navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       const url = `https://www.google.com/maps?q=${coords.latitude},${coords.longitude}`
-      navigator.clipboard?.writeText(url).then(() => alert('Location link copied to clipboard!')).catch(() => window.open(url, '_blank'))
+      navigator.clipboard?.writeText(url).then(() => toast.success('Location link copied to clipboard')).catch(() => window.open(url, '_blank'))
     })
   }, [])
 
@@ -290,9 +369,70 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
               )}
             </div>
 
-            <button className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all">
-              <Bell size={18} />
+            {/* Dark mode toggle */}
+            <button
+              onClick={toggleDark}
+              className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
+              title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {dark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
+
+            {/* Notifications */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={openNotifications}
+                className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-all"
+                title="Notifications"
+              >
+                <Bell size={18} />
+                {unseenCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {unseenCount > 9 ? '9+' : unseenCount}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 top-10 z-50 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden w-80 max-w-[calc(100vw-2rem)]">
+                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                    <p className="text-sm font-bold text-slate-900">Notifications</p>
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Last 7 days</span>
+                  </div>
+                  {notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                      <BellOff size={24} className="text-slate-200 mb-2" />
+                      <p className="text-xs text-slate-400">You're all caught up</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto scrollbar-thin divide-y divide-slate-50">
+                      {notifications.map(n => {
+                        const meta = notifTypeMeta[n.type]
+                        const NotifIcon = meta.icon
+                        return (
+                          <Link
+                            key={n.id}
+                            href={n.href}
+                            onClick={() => setNotifOpen(false)}
+                            className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+                          >
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${meta.cls}`}>
+                              <NotifIcon size={15} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold text-slate-900">{n.title}</p>
+                              <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.body}</p>
+                              <p className="text-[10px] text-slate-400 mt-1">
+                                {new Date(n.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </p>
+                            </div>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center text-white text-sm font-bold">
               {(session?.user?.name || session?.user?.email || 'U')[0].toUpperCase()}
             </div>
@@ -300,15 +440,36 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className={`flex-1 overflow-y-auto ${!isDoctor ? 'pb-16 lg:pb-0' : ''}`}>
           {children}
         </main>
       </div>
 
+      {/* Mobile bottom tab bar */}
+      {!isDoctor && (
+        <nav className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white border-t border-slate-100 flex items-stretch justify-around pb-[env(safe-area-inset-bottom)]">
+          {bottomNavKeys.map(({ key, href, icon: Icon }) => {
+            const active = currentPath === href
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 flex-1 text-[10px] font-semibold transition-colors ${
+                  active ? 'text-sky-600' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Icon size={19} className={active ? 'text-sky-600' : ''} />
+                <span className="truncate max-w-[64px]">{t(key)}</span>
+              </Link>
+            )
+          })}
+        </nav>
+      )}
+
       {/* Floating SOS button */}
       <button
         onClick={() => setSosOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-4 py-3 rounded-2xl shadow-lg shadow-red-600/30 transition-all hover:shadow-xl hover:shadow-red-600/40 hover:-translate-y-0.5 group"
+        className={`fixed right-6 z-50 flex items-center gap-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-4 py-3 rounded-2xl shadow-lg shadow-red-600/30 transition-all hover:shadow-xl hover:shadow-red-600/40 hover:-translate-y-0.5 group ${!isDoctor ? 'bottom-20 lg:bottom-6' : 'bottom-6'}`}
         title="Emergency help"
       >
         <div className="w-5 h-5 relative flex-shrink-0">

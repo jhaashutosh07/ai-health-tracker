@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Loader2, Mic, MicOff, ImagePlus, Volume2, VolumeX } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import { toast } from 'sonner'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { getT } from '@/lib/i18n/translations'
 
@@ -139,7 +141,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
     }
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
-      alert('Voice input is not supported in this browser. Please use Chrome or Edge.')
+      toast.error('Voice input is not supported in this browser. Please use Chrome or Edge.')
       return
     }
     const recognition = new SpeechRecognition()
@@ -161,11 +163,11 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
     const file = e.target.files?.[0]
     if (!file) return
     if (!['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type)) {
-      alert('Please upload a JPEG, PNG, GIF, or WebP image.')
+      toast.error('Please upload a JPEG, PNG, GIF, or WebP image.')
       return
     }
     if (file.size > 10 * 1024 * 1024) {
-      alert('Image must be under 10MB.')
+      toast.error('Image must be under 10MB.')
       return
     }
     setImageAnalyzing(true)
@@ -181,7 +183,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
         const data = await res.json()
         if (data.description) setInput(prev => prev ? prev + ' ' + data.description : data.description)
       } catch {
-        alert('Failed to analyze image. Please describe your symptoms manually.')
+        toast.error('Failed to analyze image. Please describe your symptoms manually.')
       } finally {
         setImageAnalyzing(false)
         if (fileInputRef.current) fileInputRef.current.value = ''
@@ -206,7 +208,13 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
                   ? 'bg-sky-600 text-white rounded-tr-sm'
                   : 'bg-slate-100 text-slate-900 rounded-tl-sm'
               }`}>
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                {message.role === 'assistant' ? (
+                  <div className="chat-markdown">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                )}
               </div>
             </div>
           </div>

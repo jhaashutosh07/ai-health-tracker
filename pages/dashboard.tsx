@@ -18,6 +18,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import AppShell from '@/components/AppShell'
+import { SkeletonDashboard } from '@/components/Skeleton'
 import { useAppointmentUpdates } from '@/hooks/useAppointmentUpdates'
 
 interface Appointment {
@@ -189,15 +190,22 @@ export default function Dashboard() {
   if (status === 'loading' || loading) {
     return (
       <AppShell title="Dashboard">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex items-center gap-3 text-slate-400">
-            <div className="w-5 h-5 rounded-full border-2 border-sky-500/40 border-t-sky-500 animate-spin" />
-            <span>Loading your dashboard…</span>
-          </div>
-        </div>
+        <SkeletonDashboard />
       </AppShell>
     )
   }
+
+  // Per-check scores (oldest → newest) for the health score sparkline
+  const severityScore: Record<string, number> = { LOW: 90, MEDIUM: 70, HIGH: 45, CRITICAL: 20 }
+  const trendPoints = [...recentSymptoms]
+    .reverse()
+    .map(s => severityScore[s.severity] ?? 70)
+  const sparklinePath = trendPoints.length >= 2
+    ? trendPoints
+        .map((v, i) => `${(i / (trendPoints.length - 1)) * 96 + 2},${26 - (v / 100) * 24}`)
+        .join(' ')
+    : null
+  const trendingUp = trendPoints.length >= 2 && trendPoints[trendPoints.length - 1] >= trendPoints[0]
 
   return (
     <AppShell title="Dashboard">
@@ -311,7 +319,25 @@ export default function Dashboard() {
                     style={{ width: `${healthScore}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-2">Based on recent activity</p>
+                {sparklinePath && (
+                  <div className="mt-3 flex items-end gap-2">
+                    <svg viewBox="0 0 100 28" className="w-full h-7" preserveAspectRatio="none">
+                      <polyline
+                        points={sparklinePath}
+                        fill="none"
+                        stroke={trendingUp ? '#10b981' : '#ef4444'}
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
+                    <TrendingUp size={13} className={`flex-shrink-0 ${trendingUp ? 'text-emerald-500' : 'text-red-500 rotate-180'}`} />
+                  </div>
+                )}
+                <p className="text-[10px] text-slate-400 mt-2">
+                  {sparklinePath ? 'Trend across recent checks' : 'Based on recent activity'}
+                </p>
               </>
             ) : (
               <p className="text-xs text-slate-400 mt-2">Log activity to see score</p>
