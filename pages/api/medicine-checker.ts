@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth/[...nextauth]'
-import { openai } from '@/lib/openai'
+import { openai, CHAT_MODEL } from '@/lib/openai'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' })
@@ -45,8 +45,8 @@ Rules:
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 1500,
+      model: CHAT_MODEL,
+      max_completion_tokens: 1500,
       messages: [{ role: 'user', content: prompt }],
     })
 

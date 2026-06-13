@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
-import { openai } from '@/lib/openai'
+import { openai, CHAT_MODEL } from '@/lib/openai'
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
@@ -30,8 +30,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 512,
+      model: CHAT_MODEL,
+      max_completion_tokens: 512,
       messages: [
         {
           role: 'user',

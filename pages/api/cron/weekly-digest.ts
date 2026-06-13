@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
-import { openai } from '@/lib/openai'
+import { openai, CHAT_MODEL } from '@/lib/openai'
 import nodemailer from 'nodemailer'
 
 // Secured — only callable by Vercel Cron with the CRON_SECRET header
@@ -85,8 +85,8 @@ Keep it positive, supportive, and non-alarmist. Plain text only, no markdown.`
 
       try {
         const aiRes = await openai.chat.completions.create({
-          model: 'gpt-4o',
-          max_tokens: 400,
+          model: CHAT_MODEL,
+          max_completion_tokens: 400,
           messages: [{ role: 'user', content: prompt }],
         })
         digest = aiRes.choices[0]?.message?.content || ''

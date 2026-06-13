@@ -2,7 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from './auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
-import { openai } from '@/lib/openai'
+import { openai, CHAT_MODEL } from '@/lib/openai'
 import { retrieveContext, buildReferenceBlock, buildSources } from '@/lib/rag/retrieve'
 
 // "Ask HealthAI" — answers questions grounded in the user's own health records
@@ -113,8 +113,8 @@ Your job:
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 900,
+      model: CHAT_MODEL,
+      max_completion_tokens: 900,
       messages: [
         { role: 'system', content: finalSystem },
         ...messages.slice(-12).map((m: any) => ({ role: m.role as 'user' | 'assistant', content: String(m.content || '') })),

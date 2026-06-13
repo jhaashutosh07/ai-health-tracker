@@ -33,7 +33,7 @@ async function main() {
     process.exit(1)
   }
 
-  const { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT } = await import('../lib/openai')
+  const { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT, CHAT_MODEL } = await import('../lib/openai')
   const { extractAssessment } = await import('../lib/assessment')
   const { detectRedFlags, applyRedFlagOverride } = await import('../lib/redFlags')
   const { VIGNETTES } = await import('../data/vignettes')
@@ -42,14 +42,14 @@ async function main() {
   const rawResults: any[] = []
   const overriddenResults: any[] = []
 
-  console.log(`\nRunning ${VIGNETTES.length} vignettes through gpt-4o…\n`)
+  console.log(`\nRunning ${VIGNETTES.length} vignettes through ${CHAT_MODEL}…\n`)
 
   for (const v of VIGNETTES) {
     process.stdout.write(`  • ${v.id.padEnd(22)} `)
     try {
       const res = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        max_tokens: 4000,
+        model: CHAT_MODEL,
+        max_completion_tokens: 4000,
         messages: [
           { role: 'system', content: SYMPTOM_CHECKER_SYSTEM_PROMPT },
           { role: 'user', content: v.presentation },

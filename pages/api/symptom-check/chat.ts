@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
-import { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT } from '@/lib/openai'
+import { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT, CHAT_MODEL } from '@/lib/openai'
 import { AI_LANG_INSTRUCTION, LangCode } from '@/lib/i18n/translations'
 import { prisma } from '@/lib/prisma'
 import { extractAssessment, stripForDisplay } from '@/lib/assessment'
@@ -14,11 +14,11 @@ async function callAI(messages: { role: 'user' | 'assistant'; content: string }[
     : SYMPTOM_CHECKER_SYSTEM_PROMPT
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: CHAT_MODEL,
     // The final assessment JSON (conditions + medicines + tips, sometimes in
     // Devanagari/Tamil script) regularly exceeds 1500 tokens — a truncated
     // JSON means no assessment card and no saved symptom log.
-    max_tokens: 4000,
+    max_completion_tokens: 4000,
     messages: [
       { role: 'system', content: systemContent },
       ...messages,
