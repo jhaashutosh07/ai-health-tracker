@@ -118,6 +118,30 @@ describe('POST /api/symptom-check/chat', () => {
     expect(data.message).toBe('Your fever pattern fits a viral infection.')
   })
 
+  it('forces EMERGENCY via the red-flag layer when the model under-triages a cardiac presentation', async () => {
+    // Model wrongly calls crushing chest pain "indigestion / self-care"
+    const underTriaged = JSON.stringify({
+      symptoms: ['chest pain'],
+      severity: 'LOW',
+      possibleConditions: [{ name: 'Indigestion', probability: 80, reasoning: 'after food' }],
+      recommendation: 'self-care',
+      advice: 'Take an antacid and rest.',
+      completed: true,
+    })
+    mockCreate.mockResolvedValueOnce(aiReply(`Likely indigestion.\n\`\`\`json\n${underTriaged}\n\`\`\``))
+
+    const dangerous = [{ role: 'user', content: 'I have crushing chest pain spreading to my left arm and I am sweating' }]
+    const { req, res } = createMocks({ method: 'POST', body: { messages: dangerous } })
+    await handler(req as any, res as any)
+    const data = JSON.parse(res._getData())
+
+    expect(data.assessment.severity).toBe('CRITICAL')
+    expect(data.assessment.recommendation).toBe('emergency')
+    expect(data.assessment.advice).toMatch(/112/)
+    // and the override is persisted, not just shown
+    expect(mockLogCreate.mock.calls[0][0].data.severity).toBe('CRITICAL')
+  })
+
   it('returns 500 with a friendly message when the AI call fails', async () => {
     mockCreate.mockRejectedValueOnce(new Error('rate limited'))
     const { req, res } = createMocks({ method: 'POST', body: { messages } })

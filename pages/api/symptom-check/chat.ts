@@ -5,6 +5,7 @@ import { openai, SYMPTOM_CHECKER_SYSTEM_PROMPT } from '@/lib/openai'
 import { AI_LANG_INSTRUCTION, LangCode } from '@/lib/i18n/translations'
 import { prisma } from '@/lib/prisma'
 import { extractAssessment, stripForDisplay } from '@/lib/assessment'
+import { detectRedFlags, applyRedFlagOverride } from '@/lib/redFlags'
 
 async function callAI(messages: { role: 'user' | 'assistant'; content: string }[], lang: LangCode = 'en'): Promise<string> {
   const langInstruction = AI_LANG_INSTRUCTION[lang] || ''
@@ -66,6 +67,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       )
       assessment = extractAssessment(repaired)
     } catch { /* fall through to normal incomplete handling */ }
+  }
+
+  // Safety floor: independently scan the patient's own words for emergency
+  // red flags and force the assessment to EMERGENCY if the model under-triaged.
+  if (assessment) {
+    const userText = messages.filter((m: any) => m.role === 'user').map((m: any) => m.content).join(' ')
+    const matched = detectRedFlags(userText)
+    if (matched.length) {
+      assessment = applyRedFlagOverride(assessment, matched).assessment
+    }
   }
 
   if (assessment) {

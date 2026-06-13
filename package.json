@@ -14,7 +14,8 @@
     "db:reset": "prisma db push --force-reset && npm run db:seed",
     "fetch:doctors": "tsx scripts/fetch-doctors-google.ts",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "evaluate": "tsx scripts/evaluate.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
