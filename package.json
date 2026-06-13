@@ -15,7 +15,8 @@
     "fetch:doctors": "tsx scripts/fetch-doctors-google.ts",
     "test": "jest",
     "test:watch": "jest --watch",
-    "evaluate": "tsx scripts/evaluate.ts"
+    "evaluate": "tsx scripts/evaluate.ts",
+    "ingest": "tsx scripts/ingest.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

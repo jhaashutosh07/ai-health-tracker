@@ -1,13 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
-import { Send, Sparkles, User, Loader2, Brain } from 'lucide-react'
+import { Send, Sparkles, User, Loader2, Brain, BookOpen, ExternalLink } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import AppShell from '@/components/AppShell'
+
+interface Source {
+  n: number
+  id: string
+  title: string
+  source: string
+  url: string
+}
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  sources?: Source[]
 }
 
 const SUGGESTED = [
@@ -48,7 +57,7 @@ export default function HealthChat() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Failed')
-      setMessages([...updated, { role: 'assistant', content: data.message }])
+      setMessages([...updated, { role: 'assistant', content: data.message, sources: data.sources }])
     } catch (err: any) {
       setMessages([...updated, { role: 'assistant', content: `Sorry — ${err.message}. Please try again.` }])
     } finally {
@@ -97,7 +106,32 @@ export default function HealthChat() {
                       : 'bg-slate-100 text-slate-900 rounded-tl-sm'
                   }`}>
                     {m.role === 'assistant' ? (
-                      <div className="chat-markdown"><ReactMarkdown>{m.content}</ReactMarkdown></div>
+                      <>
+                        <div className="chat-markdown"><ReactMarkdown>{m.content}</ReactMarkdown></div>
+                        {m.sources && m.sources.length > 0 && (
+                          <div className="mt-3 pt-2.5 border-t border-slate-200">
+                            <p className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                              <BookOpen size={11} /> Sources
+                            </p>
+                            <div className="flex flex-col gap-1">
+                              {m.sources.map(s => (
+                                <a
+                                  key={s.id}
+                                  href={s.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1.5 text-[11px] text-slate-500 hover:text-sky-600 transition-colors"
+                                >
+                                  <span className="font-semibold text-slate-400">[{s.n}]</span>
+                                  <span className="font-medium">{s.title}</span>
+                                  <span className="text-slate-400">· {s.source}</span>
+                                  <ExternalLink size={9} className="flex-shrink-0" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="whitespace-pre-wrap">{m.content}</p>
                     )}

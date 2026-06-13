@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from './auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { openai } from '@/lib/openai'
+import { retrieveContext, buildReferenceBlock, buildSources } from '@/lib/rag/retrieve'
 
 // "Ask HealthAI" — answers questions grounded in the user's own health records
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -97,16 +98,29 @@ Your job:
 - You may give general health information, but for new symptoms direct them to the Symptom Check feature, and for anything serious recommend seeing a doctor
 - Never diagnose. Keep answers concise and warm. Use markdown formatting (bold, lists) where it improves readability.`
 
+  // RAG: retrieve trusted medical references relevant to the latest question
+  // and ground the answer in them with inline [n] citations.
+  const lastUserMessage = [...messages].reverse().find((m: any) => m.role === 'user')?.content || ''
+  let sources: ReturnType<typeof buildSources> = []
+  let referenceBlock = ''
+  try {
+    const chunks = await retrieveContext(String(lastUserMessage))
+    referenceBlock = buildReferenceBlock(chunks)
+    sources = buildSources(chunks)
+  } catch { /* retrieval is best-effort; answer without it on failure */ }
+
+  const finalSystem = referenceBlock ? `${systemPrompt}\n\n${referenceBlock}` : systemPrompt
+
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       max_tokens: 900,
       messages: [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: finalSystem },
         ...messages.slice(-12).map((m: any) => ({ role: m.role as 'user' | 'assistant', content: String(m.content || '') })),
       ],
     })
-    return res.status(200).json({ message: response.choices[0]?.message?.content || '' })
+    return res.status(200).json({ message: response.choices[0]?.message?.content || '', sources })
   } catch (err: any) {
     console.error('Health chat error:', err)
     return res.status(500).json({ message: 'AI is temporarily unavailable. Please try again.' })
