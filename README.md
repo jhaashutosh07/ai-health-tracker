@@ -116,6 +116,41 @@ npm run dev
 
 Visit [http://localhost:3000](http://localhost:3000) to see the application.
 
+### Activating AI knowledge search (RAG) — one-time
+
+"Ask HealthAI" can ground its general medical answers in a curated reference
+corpus and show clickable sources. The corpus lives in
+`data/knowledge/corpus.ts`; its embeddings are precomputed and committed to
+`data/knowledge/embeddings.json`. Until that file is populated, Ask HealthAI
+works normally but shows no Sources.
+
+To activate (run once, and again whenever you edit the corpus):
+
+```bash
+# Requires OPENAI_API_KEY in .env.local with available quota
+npm run ingest
+git add data/knowledge/embeddings.json
+git commit -m "chore: ingest knowledge base embeddings"
+git push   # triggers a redeploy that bundles the populated index
+```
+
+> Note: `npm run ingest` and `npm run evaluate` are offline tools. They are NOT
+> part of the build or deploy — deploying the app does **not** generate
+> embeddings. They must be run locally with an OpenAI key that has quota.
+
+### Validating the symptom checker (optional)
+
+```bash
+# Scores diagnostic accuracy + triage safety against standardized vignettes
+npm run evaluate
+```
+
+### Running tests
+
+```bash
+npm test
+```
+
 ## Usage Guide
 
 ### For Patients
