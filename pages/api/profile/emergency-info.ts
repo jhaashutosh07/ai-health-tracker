@@ -18,7 +18,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Public read by unguessable token — used by the printed/QR emergency card.
     if (token && typeof token === 'string') {
-      const user = await prisma.user.findUnique({
+      const user = await prisma.user.findFirst({
         where: { emergencyToken: token },
         select: {
           name: true,

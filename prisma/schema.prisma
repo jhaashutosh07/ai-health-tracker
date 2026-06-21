@@ -30,8 +30,10 @@ model User {
   resetToken    String?
   resetTokenExpiry DateTime?
 
-  // Emergency card public-share token (unguessable; gates the public card instead of exposing the raw user id)
-  emergencyToken String?  @unique
+  // Emergency card public-share token (unguessable; gates the public card instead
+  // of exposing the raw user id). Not a DB unique constraint — uniqueness is
+  // guaranteed by a 24-byte random value — so `prisma db push` stays non-destructive.
+  emergencyToken String?
 
   // Doctor credentials & verification (only meaningful when role = DOCTOR)
   licenseNumber            String?
