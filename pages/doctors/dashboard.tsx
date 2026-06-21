@@ -129,7 +129,18 @@ export default function DoctorDashboard() {
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
     else if (session && session.user.role !== 'DOCTOR') router.push('/dashboard')
-    else if (session) { fetchAppointments(); fetchProfile() }
+    else if (session) {
+      // Unverified doctors are sent to the verification screen — their data
+      // endpoints would 403 until their registration is confirmed anyway.
+      ;(async () => {
+        try {
+          const res = await fetch('/api/doctor/verify-registration')
+          const s = res.ok ? (await res.json()).status : 'PENDING'
+          if (s !== 'VERIFIED') { router.replace('/doctor/verification'); return }
+        } catch { /* fall through and let the data fetches surface errors */ }
+        fetchAppointments(); fetchProfile()
+      })()
+    }
   }, [session, status])
 
   const fetchAppointments = async () => {

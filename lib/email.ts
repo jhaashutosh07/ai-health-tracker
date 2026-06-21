@@ -186,6 +186,56 @@ See you soon!
     `
   }),
 
+  doctorUnderReview: (name: string) => ({
+    subject: 'HealthAI — Your doctor account is being verified',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">Verification in progress</h2>
+        <p>Hi Dr. ${name},</p>
+        <p>Thanks for registering as a doctor on HealthAI. We're verifying your medical
+        registration details against the Indian Medical Register (IMR).</p>
+        <p>You'll receive an email as soon as the check is complete. Patient-facing features
+        unlock automatically once your credentials are confirmed.</p>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />
+        <p style="color: #999; font-size: 12px;">Automated message from HealthAI. Please do not reply.</p>
+      </div>`,
+    text: `Hi Dr. ${name},\n\nThanks for registering as a doctor on HealthAI. We're verifying your medical registration details against the Indian Medical Register (IMR). You'll get an email as soon as the check is complete.\n`,
+  }),
+
+  doctorVerified: (name: string, appUrl: string) => ({
+    subject: '✅ HealthAI — Your doctor account is verified',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #10b981;">You're verified!</h2>
+        <p>Hi Dr. ${name},</p>
+        <p>Your medical registration has been confirmed against the Indian Medical Register.
+        Your HealthAI doctor account is now fully active.</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${appUrl}/doctors/dashboard" style="background-color: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">Go to your dashboard</a>
+        </div>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />
+        <p style="color: #999; font-size: 12px;">Automated message from HealthAI. Please do not reply.</p>
+      </div>`,
+    text: `Hi Dr. ${name},\n\nYour medical registration has been confirmed. Your HealthAI doctor account is now active: ${appUrl}/doctors/dashboard\n`,
+  }),
+
+  doctorVerificationFailed: (name: string, supportEmail: string) => ({
+    subject: 'HealthAI — We couldn’t verify your doctor registration',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #dc2626;">We couldn’t confirm your registration</h2>
+        <p>Hi Dr. ${name},</p>
+        <p>We weren’t able to match the medical registration details you provided against the
+        Indian Medical Register. This can happen if the registration number, issuing council,
+        or name don’t match the IMR record exactly.</p>
+        <p>Please double-check your details and reply to <a href="mailto:${supportEmail}">${supportEmail}</a>
+        with your correct registration number and council so we can review it manually.</p>
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;" />
+        <p style="color: #999; font-size: 12px;">Automated message from HealthAI.</p>
+      </div>`,
+    text: `Hi Dr. ${name},\n\nWe weren’t able to match your medical registration details against the Indian Medical Register. Please reply to ${supportEmail} with your correct registration number and council for a manual review.\n`,
+  }),
+
   welcome: (name: string) => ({
     subject: 'Welcome to AI-Powered Symptom Checker',
     html: `

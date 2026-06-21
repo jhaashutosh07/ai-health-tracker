@@ -73,13 +73,6 @@ export default function Register() {
       const data = await response.json()
 
       if (response.ok) {
-        // Doctors must be verified by an admin before accessing patient features,
-        // so send them to sign-in with a heads-up rather than straight to the app.
-        if (formData.role === 'DOCTOR') {
-          setError('Account created! Your doctor credentials are pending verification. You can sign in, but patient features unlock once an administrator approves your account.')
-          setTimeout(() => { window.location.href = '/auth/signin' }, 3500)
-          return
-        }
         const result = await signIn('credentials', {
           redirect: false,
           email: formData.email,
@@ -88,6 +81,10 @@ export default function Register() {
         if (result?.error) {
           setError('Account created! Please sign in.')
           setTimeout(() => { window.location.href = '/auth/signin' }, 2000)
+        } else if (formData.role === 'DOCTOR') {
+          // Doctors land on the verification screen, which runs the IMR check
+          // and emails them the outcome.
+          window.location.href = '/doctor/verification'
         } else {
           window.location.href = '/dashboard'
         }
@@ -147,7 +144,8 @@ export default function Register() {
               <div className="space-y-4 rounded-xl border border-sky-100 bg-sky-50/60 p-4">
                 <p className="text-xs text-sky-700">
                   We verify every doctor before granting access to patient data. Enter your medical
-                  registration details — an administrator will review them.
+                  registration details — we’ll check them against the Indian Medical Register and email
+                  you once they’re confirmed.
                 </p>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">Medical registration number</label>

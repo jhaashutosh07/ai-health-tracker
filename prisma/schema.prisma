@@ -39,6 +39,7 @@ model User {
   registrationYear         Int?
   doctorVerificationStatus String   @default("PENDING") // PENDING, VERIFIED, REJECTED
   doctorVerifiedAt         DateTime?
+  doctorVerificationCheckedAt DateTime? // last time an automated IMR check ran
 
   // Location fields
   city          String?
