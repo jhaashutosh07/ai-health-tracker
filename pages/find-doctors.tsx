@@ -21,8 +21,8 @@ interface Doctor {
   rating: number | null
   reviewCount: number
   consultationFee: number | null
-  distance: number
-  distanceText: string
+  distance?: number | null
+  distanceText?: string | null
 }
 
 const SPECIALIZATIONS = [
@@ -59,7 +59,7 @@ export default function FindDoctors() {
   const [specialization, setSpecialization] = useState('')
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [dataSource, setDataSource] = useState<'google' | 'seed' | null>(null)
+  const [dataSource, setDataSource] = useState<'google' | 'seed' | 'platform' | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -80,37 +80,50 @@ export default function FindDoctors() {
 
   useEffect(() => { detectLocation() }, [detectLocation])
 
+  // Fetch on mount and whenever filters/location change. We always show the
+  // platform's own registered doctors (they're the ones bookable in-app), even
+  // before the browser grants geolocation.
   useEffect(() => {
-    if (userLocation) fetchDoctors()
+    fetchDoctors()
   }, [userLocation, radius, specialization])
 
   const fetchDoctors = async () => {
-    if (!userLocation) return
     setLoading(true)
     try {
-      const params = new URLSearchParams({
-        latitude: userLocation.lat.toString(),
-        longitude: userLocation.lng.toString(),
-        radius: radius.toString(),
-        ...(specialization && { specialization }),
-      })
+      // 1) Platform's own registered doctors (no coordinates required).
+      const platformParams = new URLSearchParams()
+      if (specialization) platformParams.set('specialization', specialization)
+      const platformRes = await fetch(`/api/doctors/search?${platformParams.toString()}`)
+      const platform: Doctor[] = platformRes.ok ? ((await platformRes.json()).doctors || []) : []
 
-      // Try Google Places API first
-      const placesRes = await fetch(`/api/doctors/places?${params}`)
-      const placesData = await placesRes.json()
-      if (placesRes.ok && !placesData.fallback && placesData.doctors?.length > 0) {
-        setDoctors(placesData.doctors)
-        setDataSource('google')
-        return
+      // 2) External results near the user (Google Places, else seed-by-distance).
+      let external: Doctor[] = []
+      let source: 'google' | 'seed' | 'platform' = 'platform'
+      if (userLocation) {
+        const params = new URLSearchParams({
+          latitude: userLocation.lat.toString(),
+          longitude: userLocation.lng.toString(),
+          radius: radius.toString(),
+          ...(specialization && { specialization }),
+        })
+        const placesRes = await fetch(`/api/doctors/places?${params}`)
+        const placesData = await placesRes.json().catch(() => ({}))
+        if (placesRes.ok && !placesData.fallback && placesData.doctors?.length > 0) {
+          external = placesData.doctors
+          source = 'google'
+        } else {
+          const res = await fetch(`/api/doctors/nearby?${params}`)
+          if (res.ok) external = (await res.json()).doctors || []
+          source = 'seed'
+        }
       }
 
-      // Fall back to seed data
-      const res = await fetch(`/api/doctors/nearby?${params}`)
-      const data = await res.json()
-      if (res.ok) {
-        setDoctors(data.doctors || [])
-        setDataSource('seed')
-      }
+      // Merge: platform doctors first, then external (deduped by id so DB
+      // doctors that also come back from the nearby query aren't repeated).
+      const seen = new Set(platform.map(d => d.id))
+      const merged = [...platform, ...external.filter(d => d.id && !seen.has(d.id))]
+      setDoctors(merged)
+      setDataSource(source)
     } catch {
       /* noop */
     } finally {
@@ -306,10 +319,12 @@ export default function FindDoctors() {
                         {doctor.experience} {t('common.yearsExp')}
                       </span>
                     )}
-                    <span className="flex items-center gap-1 text-xs bg-sky-50 text-sky-600 font-medium px-2.5 py-1 rounded-full">
-                      <MapPin size={11} />
-                      {doctor.distanceText} {t('common.away')}
-                    </span>
+                    {doctor.distanceText && (
+                      <span className="flex items-center gap-1 text-xs bg-sky-50 text-sky-600 font-medium px-2.5 py-1 rounded-full">
+                        <MapPin size={11} />
+                        {doctor.distanceText} {t('common.away')}
+                      </span>
+                    )}
                     {doctor.consultationFee != null && (
                       <span className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-1 rounded-full">
                         ₹{doctor.consultationFee} {t('common.fee')}
