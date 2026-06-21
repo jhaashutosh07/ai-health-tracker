@@ -7,16 +7,20 @@ import { rateLimit, clientIp } from '@/lib/rateLimit'
 import { z } from 'zod'
 
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(PASSWORD_MIN_LENGTH),
-  name: z.string().min(2),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters`),
+  name: z.string().min(2, 'Please enter your full name'),
   phone: z.string().optional(),
   city: z.string().optional(),
   role: z.enum(['PATIENT', 'DOCTOR']).default('PATIENT'),
   // Doctor credentials — required for verification when registering as a doctor.
   licenseNumber: z.string().optional(),
   medicalCouncil: z.string().optional(),
-  registrationYear: z.coerce.number().int().optional(),
+  // Treat empty string as "not provided"; coerce any provided value to an int.
+  registrationYear: z.preprocess(
+    (v) => (v === '' || v == null ? undefined : v),
+    z.coerce.number().int().optional()
+  ),
 }).superRefine((data, ctx) => {
   if (data.role === 'DOCTOR') {
     if (!data.licenseNumber || data.licenseNumber.trim().length < 3) {
@@ -98,7 +102,10 @@ export default async function handler(
     return res.status(201).json({ user })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: 'Invalid input', errors: error.errors })
+      // Surface the specific reason (e.g. "Please enter a valid email address")
+      // instead of a generic "Invalid input" the user can't act on.
+      const first = error.errors[0]
+      return res.status(400).json({ message: first?.message || 'Invalid input', errors: error.errors })
     }
 
     console.error('Registration error:', error)
