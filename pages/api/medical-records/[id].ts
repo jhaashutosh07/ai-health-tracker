@@ -2,8 +2,13 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
-import fs from 'fs'
-import path from 'path'
+
+// Fields returned to the client — deliberately excludes the raw `fileData` bytes.
+const documentSelect = {
+  id: true, userId: true, title: true, description: true, category: true,
+  fileName: true, fileUrl: true, fileSize: true, mimeType: true,
+  uploadedDate: true, documentDate: true, createdAt: true, updatedAt: true,
+} as const
 
 export default async function handler(
   req: NextApiRequest,
@@ -28,7 +33,8 @@ export default async function handler(
         where: {
           id,
           userId: session.user.id
-        }
+        },
+        select: documentSelect,
       })
 
       if (!document) {
@@ -40,27 +46,14 @@ export default async function handler(
 
     // DELETE - Remove document
     if (req.method === 'DELETE') {
-      const document = await prisma.medicalDocument.findFirst({
-        where: {
-          id,
-          userId: session.user.id
-        }
+      // Scope the delete to the owner so it both enforces ownership and 404s otherwise.
+      const result = await prisma.medicalDocument.deleteMany({
+        where: { id, userId: session.user.id },
       })
 
-      if (!document) {
+      if (result.count === 0) {
         return res.status(404).json({ message: 'Document not found' })
       }
-
-      // Delete file from filesystem
-      const filePath = path.join(process.cwd(), 'public', document.fileUrl)
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath)
-      }
-
-      // Delete from database
-      await prisma.medicalDocument.delete({
-        where: { id }
-      })
 
       return res.status(200).json({ message: 'Document deleted successfully' })
     }

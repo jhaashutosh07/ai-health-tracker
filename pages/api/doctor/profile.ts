@@ -1,15 +1,12 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { requireVerifiedDoctor } from '@/lib/doctorAuth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  if (!session?.user || session.user.role !== 'DOCTOR') {
-    return res.status(401).json({ message: 'Unauthorized' })
-  }
+  const verified = await requireVerifiedDoctor(req, res)
+  if (!verified) return // response already sent
 
-  const doctor = await prisma.doctor.findUnique({ where: { email: session.user.email! } })
+  const doctor = await prisma.doctor.findUnique({ where: { id: verified.doctorId } })
   if (!doctor) return res.status(404).json({ message: 'Doctor profile not found' })
 
   if (req.method === 'GET') {

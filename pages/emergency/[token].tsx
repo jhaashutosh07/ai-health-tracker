@@ -143,14 +143,14 @@ export default function EmergencyCard({
 }
 
 export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { userId } = context.params as { userId: string }
+  const { token } = context.params as { token: string }
   const proto = context.req.headers['x-forwarded-proto'] || 'http'
   const host = context.req.headers.host
-  const cardUrl = `${proto}://${host}/emergency/${userId}`
+  const cardUrl = `${proto}://${host}/emergency/${token}`
 
   try {
     const baseUrl = process.env.NEXTAUTH_URL || `${proto}://${host}`
-    const res = await fetch(`${baseUrl}/api/profile/emergency-info?userId=${userId}`)
+    const res = await fetch(`${baseUrl}/api/profile/emergency-info?token=${encodeURIComponent(token)}`)
     if (!res.ok) return { notFound: true }
 
     const data = await res.json()

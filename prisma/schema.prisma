@@ -30,6 +30,16 @@ model User {
   resetToken    String?
   resetTokenExpiry DateTime?
 
+  // Emergency card public-share token (unguessable; gates the public card instead of exposing the raw user id)
+  emergencyToken String?  @unique
+
+  // Doctor credentials & verification (only meaningful when role = DOCTOR)
+  licenseNumber            String?
+  medicalCouncil           String?
+  registrationYear         Int?
+  doctorVerificationStatus String   @default("PENDING") // PENDING, VERIFIED, REJECTED
+  doctorVerifiedAt         DateTime?
+
   // Location fields
   city          String?
   state         String?
@@ -258,7 +268,8 @@ model MedicalDocument {
   description   String?
   category      String    // LAB_REPORT, PRESCRIPTION, XRAY, CERTIFICATE, OTHER
   fileName      String
-  fileUrl       String    // File path or URL
+  fileUrl       String    // Logical path served via the authenticated /api/medical-records/file/[id] route
+  fileData      Bytes?    // Raw file bytes (stored in DB so files are never publicly served from /public)
   fileSize      Int       // Size in bytes
   mimeType      String    // File MIME type
 

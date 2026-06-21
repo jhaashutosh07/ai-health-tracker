@@ -31,8 +31,8 @@ export default function ResetPassword() {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long')
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      setError('Password must be at least 8 characters and include letters and numbers')
       setLoading(false)
       return
     }
@@ -116,7 +116,7 @@ export default function ResetPassword() {
                 autoComplete="new-password"
                 required
                 className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="New password (min 6 characters)"
+                placeholder="New password (min 8 chars, letters + numbers)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading || !token}

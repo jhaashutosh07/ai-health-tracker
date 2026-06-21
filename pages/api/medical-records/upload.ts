@@ -4,12 +4,31 @@ import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import formidable, { File } from 'formidable'
 import fs from 'fs'
-import path from 'path'
+import os from 'os'
 
 export const config = {
   api: {
     bodyParser: false,
   },
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+
+// Only allow document/image types we can safely store and render. This prevents
+// uploading active content (.html/.svg/.js) that could be served back and
+// executed in the user's browser (stored XSS).
+const ALLOWED_MIME_TYPES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+])
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp'])
+
+function getExtension(name: string | null | undefined): string {
+  if (!name) return ''
+  const i = name.lastIndexOf('.')
+  return i >= 0 ? name.slice(i).toLowerCase() : ''
 }
 
 export default async function handler(
@@ -26,59 +45,81 @@ export default async function handler(
     return res.status(401).json({ message: 'Unauthorized' })
   }
 
+  let tempPath: string | undefined
+
   try {
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'medical-documents')
-
-    // Ensure upload directory exists
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true })
-    }
-
+    // Parse into the OS temp dir (the only reliably writable location on
+    // serverless platforms like Vercel). The bytes are then persisted to the
+    // database and the temp file is removed.
     const form = formidable({
-      uploadDir,
+      uploadDir: os.tmpdir(),
       keepExtensions: true,
-      maxFileSize: 10 * 1024 * 1024, // 10MB
-      filename: (name, ext, part) => {
-        // Generate unique filename
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        return `${session.user.id}-${uniqueSuffix}${ext}`
-      }
+      maxFileSize: MAX_FILE_SIZE,
     })
 
     const [fields, files] = await form.parse(req)
 
-    const file = files.file?.[0] as File
+    const file = files.file?.[0] as File | undefined
     if (!file) {
       return res.status(400).json({ message: 'No file uploaded' })
     }
+    tempPath = file.filepath
+
+    // Validate type by both MIME and extension.
+    const ext = getExtension(file.originalFilename)
+    if (!ALLOWED_MIME_TYPES.has(file.mimetype || '') || !ALLOWED_EXTENSIONS.has(ext)) {
+      return res.status(400).json({
+        message: 'Unsupported file type. Please upload a PDF, JPG, PNG, or WEBP file.',
+      })
+    }
+
+    const fileData = fs.readFileSync(file.filepath)
 
     const title = fields.title?.[0] || file.originalFilename || 'Untitled'
     const description = fields.description?.[0] || null
     const category = fields.category?.[0] || 'OTHER'
     const documentDateStr = fields.documentDate?.[0]
 
-    // Save file info to database
     const document = await prisma.medicalDocument.create({
       data: {
         userId: session.user.id,
         title,
         description,
         category,
-        fileName: file.originalFilename || file.newFilename,
-        fileUrl: `/uploads/medical-documents/${file.newFilename}`,
+        fileName: file.originalFilename || 'document',
+        // Served only through the authenticated, ownership-checked route — never from /public.
+        fileUrl: '', // set below once we have the id
+        fileData,
         fileSize: file.size,
         mimeType: file.mimetype || 'application/octet-stream',
-        documentDate: documentDateStr ? new Date(documentDateStr) : null
-      }
+        documentDate: documentDateStr ? new Date(documentDateStr) : null,
+      },
+    })
+
+    const updated = await prisma.medicalDocument.update({
+      where: { id: document.id },
+      data: { fileUrl: `/api/medical-records/file/${document.id}` },
+      // Don't ship the raw bytes back to the client.
+      select: {
+        id: true, userId: true, title: true, description: true, category: true,
+        fileName: true, fileUrl: true, fileSize: true, mimeType: true,
+        uploadedDate: true, documentDate: true, createdAt: true, updatedAt: true,
+      },
     })
 
     return res.status(201).json({
       message: 'File uploaded successfully',
-      document
+      document: updated,
     })
-
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 1009 || /maxFileSize/i.test(error?.message || '')) {
+      return res.status(413).json({ message: 'File is too large. Maximum size is 10MB.' })
+    }
     console.error('Upload error:', error)
     return res.status(500).json({ message: 'Failed to upload file' })
+  } finally {
+    if (tempPath) {
+      try { fs.unlinkSync(tempPath) } catch { /* best-effort cleanup */ }
+    }
   }
 }

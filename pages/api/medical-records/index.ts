@@ -32,7 +32,13 @@ export default async function handler(
       where,
       orderBy: {
         uploadedDate: 'desc'
-      }
+      },
+      // Exclude raw `fileData` bytes from the list payload.
+      select: {
+        id: true, userId: true, title: true, description: true, category: true,
+        fileName: true, fileUrl: true, fileSize: true, mimeType: true,
+        uploadedDate: true, documentDate: true, createdAt: true, updatedAt: true,
+      },
     })
 
     return res.status(200).json({
