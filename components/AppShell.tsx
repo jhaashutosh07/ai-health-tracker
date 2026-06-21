@@ -248,11 +248,12 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
               <Settings size={17} />
               {t('nav.settings')}
             </Link>
+            {/* The public card is keyed by an unguessable token, not the user id.
+                Route through settings, where the token-based QR + preview link live. */}
             <Link
-              href={`/emergency/${session?.user?.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/settings"
               className="nav-item"
+              onClick={() => setSidebarOpen(false)}
             >
               <ShieldAlert size={17} />
               {t('nav.emergencyCard')}

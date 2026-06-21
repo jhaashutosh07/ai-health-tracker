@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { sendEmail, emailTemplates } from '@/lib/email'
+import { rateLimit, clientIp } from '@/lib/rateLimit'
 import crypto from 'crypto'
 
 export default async function handler(
@@ -9,6 +10,11 @@ export default async function handler(
 ) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' })
+  }
+
+  // Throttle reset requests to limit email-bombing and user enumeration timing.
+  if (!rateLimit(`forgot:${clientIp(req)}`, 5, 15 * 60 * 1000)) {
+    return res.status(429).json({ message: 'Too many requests. Please try again later.' })
   }
 
   try {

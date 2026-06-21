@@ -21,16 +21,37 @@ async function main() {
 
   console.log('✅ Created patient:', patient.email)
 
-  // Create test doctor
+  // Create test doctor (pre-verified for the demo) + a matching Doctor profile
+  // so doctor-only features work out of the box.
   const doctor = await prisma.user.upsert({
     where: { email: 'doctor@test.com' },
-    update: {},
+    update: { doctorVerificationStatus: 'VERIFIED', doctorVerifiedAt: new Date() },
     create: {
       email: 'doctor@test.com',
       password: await hash('password123', 12),
       name: 'Dr. Sarah Smith',
       phone: '+1987654321',
       role: 'DOCTOR',
+      licenseNumber: 'DEMO-REG-0001',
+      medicalCouncil: 'Demo Medical Council',
+      registrationYear: 2015,
+      doctorVerificationStatus: 'VERIFIED',
+      doctorVerifiedAt: new Date(),
+    },
+  })
+
+  await prisma.doctor.upsert({
+    where: { email: 'doctor@test.com' },
+    update: {},
+    create: {
+      name: 'Dr. Sarah Smith',
+      email: 'doctor@test.com',
+      phone: '+1987654321',
+      specialization: 'General Physician',
+      experience: 10,
+      location: 'Demo Clinic',
+      availableSlots: JSON.stringify([]),
+      isAvailable: true,
     },
   })
 

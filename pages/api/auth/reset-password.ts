@@ -1,6 +1,8 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { hash } from 'bcryptjs'
+import { validatePassword } from '@/lib/password'
+import { rateLimit, clientIp } from '@/lib/rateLimit'
 
 export default async function handler(
   req: NextApiRequest,
@@ -10,6 +12,11 @@ export default async function handler(
     return res.status(405).json({ message: 'Method not allowed' })
   }
 
+  // Throttle to limit brute-forcing of reset tokens.
+  if (!rateLimit(`reset:${clientIp(req)}`, 10, 15 * 60 * 1000)) {
+    return res.status(429).json({ message: 'Too many attempts. Please try again later.' })
+  }
+
   try {
     const { token, password } = req.body
 
@@ -17,8 +24,9 @@ export default async function handler(
       return res.status(400).json({ message: 'Token and password are required' })
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long' })
+    const check = validatePassword(password)
+    if (!check.valid) {
+      return res.status(400).json({ message: check.message })
     }
 
     // Find user by reset token

@@ -17,6 +17,9 @@ export default function Register() {
     phone: '',
     city: '',
     role: 'PATIENT',
+    licenseNumber: '',
+    medicalCouncil: '',
+    registrationYear: '',
   })
   const [showPw, setShowPw] = useState(false)
   const [showConfirmPw, setShowConfirmPw] = useState(false)
@@ -37,8 +40,13 @@ export default function Register() {
       setLoading(false)
       return
     }
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (formData.password.length < 8 || !/[A-Za-z]/.test(formData.password) || !/[0-9]/.test(formData.password)) {
+      setError('Password must be at least 8 characters and include letters and numbers')
+      setLoading(false)
+      return
+    }
+    if (formData.role === 'DOCTOR' && (!formData.licenseNumber.trim() || !formData.medicalCouncil.trim() || !formData.registrationYear.trim())) {
+      setError('Please provide your medical registration number, council, and registration year')
       setLoading(false)
       return
     }
@@ -54,12 +62,24 @@ export default function Register() {
           phone: formData.phone || undefined,
           city: formData.city || undefined,
           role: formData.role,
+          ...(formData.role === 'DOCTOR' && {
+            licenseNumber: formData.licenseNumber,
+            medicalCouncil: formData.medicalCouncil,
+            registrationYear: formData.registrationYear,
+          }),
         }),
       })
 
       const data = await response.json()
 
       if (response.ok) {
+        // Doctors must be verified by an admin before accessing patient features,
+        // so send them to sign-in with a heads-up rather than straight to the app.
+        if (formData.role === 'DOCTOR') {
+          setError('Account created! Your doctor credentials are pending verification. You can sign in, but patient features unlock once an administrator approves your account.')
+          setTimeout(() => { window.location.href = '/auth/signin' }, 3500)
+          return
+        }
         const result = await signIn('credentials', {
           redirect: false,
           email: formData.email,
@@ -81,7 +101,7 @@ export default function Register() {
     }
   }
 
-  const pwStrong = formData.password.length >= 6
+  const pwStrong = formData.password.length >= 8 && /[A-Za-z]/.test(formData.password) && /[0-9]/.test(formData.password)
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
@@ -121,6 +141,51 @@ export default function Register() {
                 </button>
               ))}
             </div>
+
+            {/* Doctor credentials — required for verification */}
+            {formData.role === 'DOCTOR' && (
+              <div className="space-y-4 rounded-xl border border-sky-100 bg-sky-50/60 p-4">
+                <p className="text-xs text-sky-700">
+                  We verify every doctor before granting access to patient data. Enter your medical
+                  registration details — an administrator will review them.
+                </p>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Medical registration number</label>
+                  <input
+                    name="licenseNumber" type="text"
+                    className="input"
+                    placeholder="e.g. NMC / state council reg. no."
+                    value={formData.licenseNumber}
+                    onChange={handleChange}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Medical council</label>
+                    <input
+                      name="medicalCouncil" type="text"
+                      className="input"
+                      placeholder="e.g. Maharashtra Medical Council"
+                      value={formData.medicalCouncil}
+                      onChange={handleChange}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Registration year</label>
+                    <input
+                      name="registrationYear" type="number" min={1950} max={new Date().getFullYear()}
+                      className="input"
+                      placeholder="e.g. 2016"
+                      value={formData.registrationYear}
+                      onChange={handleChange}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Name + Email */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -200,7 +265,7 @@ export default function Register() {
                 <input
                   name="password" type={showPw ? 'text' : 'password'} autoComplete="new-password" required
                   className="input pl-9 pr-10"
-                  placeholder="At least 6 characters"
+                  placeholder="At least 8 characters, letters + numbers"
                   value={formData.password}
                   onChange={handleChange}
                   disabled={loading}
@@ -217,7 +282,7 @@ export default function Register() {
               {formData.password.length > 0 && (
                 <div className={`flex items-center gap-1.5 mt-1.5 text-xs font-medium ${pwStrong ? 'text-emerald-600' : 'text-amber-600'}`}>
                   <CheckCircle2 size={12} />
-                  {pwStrong ? 'Strong password' : 'Too short — minimum 6 characters'}
+                  {pwStrong ? 'Strong password' : 'Use at least 8 characters with letters and numbers'}
                 </div>
               )}
             </div>

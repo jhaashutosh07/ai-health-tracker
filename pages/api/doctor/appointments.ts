@@ -1,28 +1,13 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { pusherServer } from '@/lib/pusher'
+import { requireVerifiedDoctor } from '@/lib/doctorAuth'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
+  const doctor = await requireVerifiedDoctor(req, res)
+  if (!doctor) return // response already sent
 
-  if (!session?.user || session.user.role !== 'DOCTOR') {
-    return res.status(403).json({ message: 'Access denied' })
-  }
-
-  // The Doctor table is separate from the User table.
-  // Look up the Doctor record by matching the logged-in user's email.
-  const doctorRecord = await prisma.doctor.findUnique({
-    where: { email: session.user.email! },
-  })
-
-  if (!doctorRecord) {
-    return res.status(404).json({
-      message: 'No doctor profile found for this account. Please contact admin to set up your doctor profile.',
-      appointments: [],
-    })
-  }
+  const doctorRecord = { id: doctor.doctorId }
 
   if (req.method === 'GET') {
     try {

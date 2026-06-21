@@ -4,10 +4,11 @@ export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || '',
 })
 
-// Central chat/vision model for the whole app. gpt-5.x is vision-capable and
-// requires `max_completion_tokens` (not the deprecated `max_tokens`). To change
-// models app-wide, edit only this line.
-export const CHAT_MODEL = 'gpt-5.1'
+// Central chat/vision model for the whole app. Defaults to gpt-4o, a real,
+// vision-capable model that accepts `max_completion_tokens`. Override per
+// environment with OPENAI_CHAT_MODEL once you've confirmed the model id is
+// enabled on your OpenAI account.
+export const CHAT_MODEL = process.env.OPENAI_CHAT_MODEL || 'gpt-4o'
 
 export const SYMPTOM_CHECKER_SYSTEM_PROMPT = `You are a compassionate and highly knowledgeable AI health assistant with deep clinical knowledge. Think of yourself as a doctor-friend who gives honest, specific, data-driven advice — not vague reassurances.
 

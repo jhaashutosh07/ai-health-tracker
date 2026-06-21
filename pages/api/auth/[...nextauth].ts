@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import { compare } from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { rateLimit } from "@/lib/rateLimit"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -18,9 +19,16 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Invalid credentials")
+        }
+
+        // Throttle credential stuffing / brute force, keyed by IP + email.
+        const fwd = req?.headers?.["x-forwarded-for"]
+        const ip = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0].trim() || "unknown"
+        if (!rateLimit(`login:${ip}:${credentials.email.toLowerCase()}`, 10, 15 * 60 * 1000)) {
+          throw new Error("Too many login attempts. Please try again later.")
         }
 
         const user = await prisma.user.findUnique({

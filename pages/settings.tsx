@@ -18,6 +18,7 @@ export default function Settings() {
   const [emergencyContactPhone, setEmergencyContactPhone] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [emergencyToken, setEmergencyToken] = useState('')
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -25,13 +26,15 @@ export default function Settings() {
 
   useEffect(() => {
     if (!session?.user?.id) return
-    fetch(`/api/profile/emergency-info?userId=${session.user.id}`)
+    // Authenticated self read — also returns this user's unguessable share token.
+    fetch(`/api/profile/emergency-info`)
       .then(r => r.json())
       .then(data => {
         setBloodType(data.bloodType || '')
         setAllergies(data.allergies || [])
         setEmergencyContactName(data.emergencyContactName || '')
         setEmergencyContactPhone(data.emergencyContactPhone || '')
+        if (data.emergencyToken) setEmergencyToken(data.emergencyToken)
       })
       .catch(() => {})
   }, [session?.user?.id])
@@ -46,11 +49,13 @@ export default function Settings() {
     setSaving(true)
     setSaved(false)
     try {
-      await fetch('/api/profile/emergency-info', {
+      const res = await fetch('/api/profile/emergency-info', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bloodType, allergies, emergencyContactName, emergencyContactPhone }),
       })
+      const data = await res.json().catch(() => ({}))
+      if (data.emergencyToken) setEmergencyToken(data.emergencyToken)
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } finally {
@@ -58,8 +63,8 @@ export default function Settings() {
     }
   }
 
-  const cardUrl = typeof window !== 'undefined' && session?.user?.id
-    ? `${window.location.origin}/emergency/${session.user.id}`
+  const cardUrl = typeof window !== 'undefined' && emergencyToken
+    ? `${window.location.origin}/emergency/${emergencyToken}`
     : ''
 
   if (status === 'loading') return null

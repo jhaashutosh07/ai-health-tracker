@@ -1,11 +1,16 @@
 import nodemailer from 'nodemailer'
 
-// Email configuration
+// Email configuration.
+// The app standardises on EMAIL_FROM / EMAIL_PASSWORD (Gmail app password),
+// matching .env.example and the cron jobs. SMTP_USER/SMTP_PASS are still honoured
+// as a fallback for non-Gmail setups. Previously this file only read
+// SMTP_USER/SMTP_PASS, so in production (where only EMAIL_* are set) every email —
+// including password-reset links — silently fell into demo mode and was never sent.
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@symptomchecker.com'
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com'
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587')
-const SMTP_USER = process.env.SMTP_USER
-const SMTP_PASS = process.env.SMTP_PASS
+const SMTP_USER = process.env.SMTP_USER || process.env.EMAIL_FROM
+const SMTP_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD
 
 // Demo mode - if no SMTP credentials provided
 const DEMO_MODE = !SMTP_USER || !SMTP_PASS
