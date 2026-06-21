@@ -42,7 +42,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ status: 'VERIFIED' })
   }
 
-  if (!user.licenseNumber) {
+  // Demo / manual allowlist: emails listed in DEMO_VERIFIED_DOCTORS are auto-verified,
+  // bypassing the NMC check (used for demo accounts). Comma-separated, case-insensitive.
+  const demoAllowlist = (process.env.DEMO_VERIFIED_DOCTORS || '')
+    .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+  const isDemoDoctor = demoAllowlist.includes(user.email.toLowerCase())
+
+  if (!isDemoDoctor && !user.licenseNumber) {
     return res.status(400).json({ status: user.doctorVerificationStatus, message: 'No registration number on file.' })
   }
 
@@ -50,12 +56,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const supportEmail = process.env.EMAIL_FROM || 'support@healthai.app'
   const firstCheck = !user.doctorVerificationCheckedAt
 
-  const result = await verifyDoctorRegistration({
-    registrationNumber: user.licenseNumber,
-    name: user.name,
-    medicalCouncil: user.medicalCouncil,
-    registrationYear: user.registrationYear,
-  })
+  const result = isDemoDoctor
+    ? ({ outcome: 'MATCHED', source: 'none', detail: 'demo allowlist' } as const)
+    : await verifyDoctorRegistration({
+        registrationNumber: user.licenseNumber!,
+        name: user.name,
+        medicalCouncil: user.medicalCouncil,
+        registrationYear: user.registrationYear,
+      })
 
   if (result.outcome === 'MATCHED') {
     await prisma.user.update({
