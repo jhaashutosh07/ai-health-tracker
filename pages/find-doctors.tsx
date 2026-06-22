@@ -59,7 +59,8 @@ export default function FindDoctors() {
   const [specialization, setSpecialization] = useState('')
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [dataSource, setDataSource] = useState<'google' | 'seed' | 'platform' | null>(null)
+  const [dataSource, setDataSource] = useState<'google' | 'platform' | null>(null)
+  const [liveError, setLiveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -89,16 +90,18 @@ export default function FindDoctors() {
 
   const fetchDoctors = async () => {
     setLoading(true)
+    setLiveError(null)
     try {
-      // 1) Platform's own registered doctors (no coordinates required).
+      // 1) Platform's own registered + curated doctors (always shown, bookable
+      //    in-app, no coordinates required).
       const platformParams = new URLSearchParams()
       if (specialization) platformParams.set('specialization', specialization)
       const platformRes = await fetch(`/api/doctors/search?${platformParams.toString()}`)
       const platform: Doctor[] = platformRes.ok ? ((await platformRes.json()).doctors || []) : []
 
-      // 2) External results near the user (Google Places, else seed-by-distance).
+      // 2) Real nearby clinics from Google (only with a location).
       let external: Doctor[] = []
-      let source: 'google' | 'seed' | 'platform' = 'platform'
+      let source: 'google' | 'platform' = 'platform'
       if (userLocation) {
         const params = new URLSearchParams({
           latitude: userLocation.lat.toString(),
@@ -108,18 +111,16 @@ export default function FindDoctors() {
         })
         const placesRes = await fetch(`/api/doctors/places?${params}`)
         const placesData = await placesRes.json().catch(() => ({}))
-        if (placesRes.ok && !placesData.fallback && placesData.doctors?.length > 0) {
+        if (placesRes.ok && placesData.doctors?.length > 0) {
           external = placesData.doctors
           source = 'google'
-        } else {
-          const res = await fetch(`/api/doctors/nearby?${params}`)
-          if (res.ok) external = (await res.json()).doctors || []
-          source = 'seed'
+        } else if (placesData.message) {
+          // Surface why live nearby data is unavailable (e.g. API not enabled).
+          setLiveError(placesData.message)
         }
       }
 
-      // Merge: platform doctors first, then external (deduped by id so DB
-      // doctors that also come back from the nearby query aren't repeated).
+      // Merge: platform doctors first, then live Google results (deduped by id).
       const seen = new Set(platform.map(d => d.id))
       const merged = [...platform, ...external.filter(d => d.id && !seen.has(d.id))]
       setDoctors(merged)
@@ -170,10 +171,10 @@ export default function FindDoctors() {
             <h1 className="text-2xl font-bold text-slate-900">{t('doctors.title')}</h1>
             <p className="text-slate-500 text-sm mt-1">
               {dataSource === 'google'
-                ? <span className="flex items-center gap-1">{t('doctors.subtitle')} <span className="text-emerald-600 font-semibold text-xs">● Live data</span></span>
+                ? <span className="flex items-center gap-1">Registered doctors + live nearby results <span className="text-emerald-600 font-semibold text-xs">● Live</span></span>
                 : userLocation
-                ? `Showing doctors within ${radius} km`
-                : 'Enable location to find doctors near you'}
+                ? 'Showing registered doctors'
+                : 'Enable location to also see real clinics near you'}
             </p>
           </div>
           {!userLocation && (
@@ -187,6 +188,17 @@ export default function FindDoctors() {
             </button>
           )}
         </div>
+
+        {/* Live nearby unavailable — surface the real reason */}
+        {liveError && userLocation && (
+          <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm">
+            <MapPin size={16} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Live nearby results are unavailable right now.</p>
+              <p className="text-amber-700 text-xs mt-0.5">Showing registered doctors only. Reason: {liveError}</p>
+            </div>
+          </div>
+        )}
 
         {/* Search + Filters bar */}
         <div className="card p-4 space-y-4">

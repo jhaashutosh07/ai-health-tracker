@@ -8,17 +8,17 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   const dLon = ((lon2 - lon1) * Math.PI) / 180
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) ** 2
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 function formatDist(km: number) {
-  if (km < 1) return `${Math.round(km * 1000)} m`
-  return `${km.toFixed(1)} km`
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`
 }
 
+// Real nearby doctors/clinics via the Google Places API (New) Text Search.
+// Returns live name / address / rating / phone / open-now / distance. Google
+// does NOT expose consultation fees, so that stays null (never fabricated).
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).end()
 
@@ -28,7 +28,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { latitude, longitude, radius = '10', specialization = '' } = req.query
   if (!latitude || !longitude) return res.status(400).json({ message: 'latitude and longitude required' })
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  // Prefer a dedicated server-side key (unrestricted / IP-restricted). Fall back
+  // to the public Maps key, but note that referrer-restricted keys will be
+  // REQUEST_DENIED on server-side calls — see the error surfaced below.
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   if (!apiKey) {
     return res.status(503).json({ message: 'Google Places API key not configured', fallback: true })
   }
@@ -36,63 +39,83 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const lat = parseFloat(latitude as string)
   const lng = parseFloat(longitude as string)
   const radiusMeters = Math.min(parseFloat(radius as string) * 1000, 50000)
+  const textQuery = specialization ? `${specialization} doctor` : 'doctor clinic hospital'
 
-  const keyword = specialization
-    ? `doctor ${specialization}`
-    : 'doctor clinic hospital'
+  let data: any
+  try {
+    const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': [
+          'places.id',
+          'places.displayName',
+          'places.formattedAddress',
+          'places.shortFormattedAddress',
+          'places.location',
+          'places.rating',
+          'places.userRatingCount',
+          'places.internationalPhoneNumber',
+          'places.nationalPhoneNumber',
+          'places.currentOpeningHours.openNow',
+          'places.primaryTypeDisplayName',
+          'places.types',
+        ].join(','),
+      },
+      body: JSON.stringify({
+        textQuery,
+        maxResultCount: 20,
+        locationBias: {
+          circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
+        },
+      }),
+    })
 
-  const url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json')
-  url.searchParams.set('location', `${lat},${lng}`)
-  url.searchParams.set('radius', radiusMeters.toString())
-  url.searchParams.set('type', 'doctor')
-  url.searchParams.set('keyword', keyword)
-  url.searchParams.set('key', apiKey)
+    data = await response.json().catch(() => ({}))
 
-  const response = await fetch(url.toString())
-  if (!response.ok) {
-    return res.status(502).json({ message: 'Google Places API error' })
-  }
-
-  const data = await response.json()
-  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-    return res.status(502).json({ message: `Google Places: ${data.status}`, error_message: data.error_message })
-  }
-
-  const doctors = (data.results || []).map((place: any) => {
-    const placeLat = place.geometry?.location?.lat ?? 0
-    const placeLng = place.geometry?.location?.lng ?? 0
-    const km = haversineKm(lat, lng, placeLat, placeLng)
-
-    const isOpen = place.opening_hours?.open_now ?? null
-
-    const spec = (place.types || []).includes('hospital')
-      ? 'Hospital'
-      : (place.types || []).includes('pharmacy')
-      ? 'Pharmacy'
-      : specialization || 'General Physician'
-
-    return {
-      id: place.place_id,
-      name: place.name,
-      specialization: spec,
-      phone: '',
-      experience: 0,
-      location: place.vicinity || '',
-      address: place.vicinity || '',
-      city: (place.vicinity || '').split(',').pop()?.trim() || '',
-      latitude: placeLat,
-      longitude: placeLng,
-      rating: place.rating ?? null,
-      reviewCount: place.user_ratings_total ?? 0,
-      consultationFee: null,
-      distance: km,
-      distanceText: formatDist(km),
-      isOpenNow: isOpen,
-      placeId: place.place_id,
-      photoRef: place.photos?.[0]?.photo_reference || null,
-      source: 'google',
+    if (!response.ok) {
+      // Surface the real reason (e.g. API not enabled, key referrer-restricted,
+      // billing not set up) so it can be fixed — and let the page fall back.
+      const reason = data?.error?.message || `HTTP ${response.status}`
+      return res.status(502).json({ message: `Google Places error: ${reason}`, status: data?.error?.status, fallback: true })
     }
-  }).sort((a: any, b: any) => a.distance - b.distance)
+  } catch (err: any) {
+    return res.status(502).json({ message: `Google Places request failed: ${err?.message || 'network error'}`, fallback: true })
+  }
+
+  const doctors = (data.places || [])
+    .map((place: any) => {
+      const placeLat = place.location?.latitude ?? 0
+      const placeLng = place.location?.longitude ?? 0
+      const km = haversineKm(lat, lng, placeLat, placeLng)
+      const types: string[] = place.types || []
+      const spec =
+        place.primaryTypeDisplayName?.text ||
+        (types.includes('hospital') ? 'Hospital' : types.includes('pharmacy') ? 'Pharmacy' : specialization || 'Doctor')
+
+      return {
+        id: place.id,
+        name: place.displayName?.text || 'Unknown',
+        specialization: spec,
+        phone: place.internationalPhoneNumber || place.nationalPhoneNumber || '',
+        experience: 0,
+        location: place.shortFormattedAddress || place.formattedAddress || '',
+        address: place.formattedAddress || place.shortFormattedAddress || '',
+        city: (place.formattedAddress || '').split(',').slice(-2, -1)[0]?.trim() || '',
+        latitude: placeLat,
+        longitude: placeLng,
+        rating: place.rating ?? null,
+        reviewCount: place.userRatingCount ?? 0,
+        consultationFee: null, // Not available from Google — never fabricated.
+        distance: km,
+        distanceText: formatDist(km),
+        isOpenNow: place.currentOpeningHours?.openNow ?? null,
+        placeId: place.id,
+        source: 'google',
+      }
+    })
+    .sort((a: any, b: any) => a.distance - b.distance)
 
   return res.json({ doctors, total: doctors.length, source: 'google' })
 }
