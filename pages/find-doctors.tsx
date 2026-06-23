@@ -4,7 +4,7 @@ import { useRouter } from 'next/router'
 import Link from 'next/link'
 import {
   MapPin, Phone, Star, Clock, Search, SlidersHorizontal,
-  Calendar, Stethoscope, Navigation, Loader2, ExternalLink,
+  Calendar, Stethoscope, Navigation, Loader2, ExternalLink, Sparkles,
 } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -39,6 +39,52 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+// Per-doctor AI summary, lazily fetched (and server-cached) so a patient gets a
+// quick read of what the provider offers, grounded in the real listing data.
+function AiInsight({ doctor }: { doctor: Doctor }) {
+  const [insight, setInsight] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    fetch('/api/doctors/ai-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: doctor.id,
+        name: doctor.name,
+        specialization: doctor.specialization,
+        rating: doctor.rating,
+        reviewCount: doctor.reviewCount,
+        city: doctor.city,
+        isOpenNow: doctor.isOpenNow ?? null,
+      }),
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled) setInsight(d?.insight || null) })
+      .catch(() => { if (!cancelled) setInsight(null) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [doctor.id])
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 bg-violet-50 rounded-xl px-3 py-2 mb-4">
+        <Sparkles size={13} className="text-violet-500 animate-pulse flex-shrink-0" />
+        <span className="h-2 bg-violet-200/70 rounded w-3/4 animate-pulse" />
+      </div>
+    )
+  }
+  if (!insight) return null
+  return (
+    <div className="flex items-start gap-2 bg-violet-50 rounded-xl px-3 py-2 mb-4">
+      <Sparkles size={13} className="text-violet-500 flex-shrink-0 mt-0.5" />
+      <p className="text-xs text-violet-800 leading-snug">{insight}</p>
+    </div>
+  )
 }
 
 const SPECIALIZATIONS = [
@@ -151,9 +197,12 @@ export default function FindDoctors() {
         }
       }
 
-      // Merge: platform doctors first, then live Google results (deduped by id).
+      // Merge platform + live Google results (deduped by id), then sort so the
+      // nearest doctors appear first. Doctors without a known distance (the
+      // platform's own registrants with no coordinates) sort to the end.
       const seen = new Set(platform.map(d => d.id))
       const merged = [...platform, ...external.filter(d => d.id && !seen.has(d.id))]
+      merged.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
       setDoctors(merged)
       setDataSource(source)
     } catch {
@@ -387,6 +436,9 @@ export default function FindDoctors() {
                       {doctor.address}
                     </p>
                   )}
+
+                  {/* AI insight — what this provider offers, in plain language */}
+                  <AiInsight doctor={doctor} />
 
                   {/* Real ratings summary + link to full Google reviews */}
                   {doctor.source === 'google' && doctor.rating != null && doctor.placeId && (
