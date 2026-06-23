@@ -31,21 +31,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ? `\nPatient reviews:\n${reviews.slice(0, 5).map((r: any, i: number) => `${i + 1}. (${r.rating ?? '?'}/5) ${r.text}`).join('\n')}`
     : ''
 
+  const ratingCount = Number(reviewCount ?? 0)
+  // Characterise reputation from the actual numbers so summaries differ per doctor.
+  const reputation = rating == null
+    ? 'no Google rating yet'
+    : `${rating}/5 from ${ratingCount} ratings` +
+      (rating >= 4.6 ? ' (excellent)' : rating >= 4.0 ? ' (good)' : rating >= 3.0 ? ' (mixed)' : ' (low)') +
+      (ratingCount >= 1000 ? ', very high patient volume' : ratingCount >= 100 ? ', well-established' : ratingCount >= 20 ? ', moderately reviewed' : ', few ratings so far')
+
   const facts = [
     `Name: ${name}`,
     specialization ? `Specialty/type: ${specialization}` : '',
-    rating != null ? `Google rating: ${rating}/5 from ${reviewCount ?? 0} ratings` : 'No rating available',
+    `Reputation: ${reputation}`,
     city ? `Area: ${city}` : '',
     isOpenNow === true ? 'Currently open' : isOpenNow === false ? 'Currently closed' : '',
   ].filter(Boolean).join('\n')
 
-  const system = `You write one short, neutral, patient-facing sentence (max 30 words) helping someone decide whether to visit a doctor or clinic.
+  const system = `You write ONE short, specific, patient-facing sentence (max 30 words) that helps someone choose between doctors.
+Make each summary DISTINCT — lead with what is specific to THIS provider:
+- Name the specialty and the concrete conditions/care it generally covers (e.g. a cardiologist → heart/BP/chest-pain; a dermatologist → skin/hair/acne; a hospital → multi-department/emergency care). Vary this by the specialty given.
+- Reflect the reputation EXACTLY as described (rating tier + how many patients rated). A 4.8-from-30 reads differently from a 4.1-from-9000 — say so.
+- If patient reviews are provided, lead with their common themes instead.
 Rules:
-- Use ONLY the facts provided. If patient reviews are included, summarise their common themes honestly.
-- If there are NO reviews, base it on the rating, number of ratings, and specialty only — and do not pretend to quote or summarise reviews.
-- Never invent credentials, years of experience, clinical outcomes, or specific reviews.
-- For a known specialty, you may briefly note the kinds of conditions it generally addresses.
-- Plain language. No marketing fluff. No "highly recommended" unless the rating clearly supports it.`
+- Use ONLY the facts provided. Never invent credentials, experience, outcomes, or reviews.
+- No generic filler like "this is a great doctor". Be concrete and differentiated.
+- Plain language, one sentence.`
 
   try {
     const response = await openai.chat.completions.create({

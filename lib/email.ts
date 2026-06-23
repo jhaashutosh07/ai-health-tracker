@@ -9,8 +9,10 @@ import nodemailer from 'nodemailer'
 const EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@symptomchecker.com'
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com'
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587')
-const SMTP_USER = process.env.SMTP_USER || process.env.EMAIL_FROM
-const SMTP_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD
+const SMTP_USER = (process.env.SMTP_USER || process.env.EMAIL_FROM || '').trim()
+// Gmail shows App Passwords as "abcd efgh ijkl mnop"; pasted-with-spaces is a
+// very common reason SMTP auth fails — strip all whitespace defensively.
+const SMTP_PASS = (process.env.SMTP_PASS || process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '')
 
 // Demo mode - if no SMTP credentials provided
 const DEMO_MODE = !SMTP_USER || !SMTP_PASS
@@ -63,6 +65,20 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
   } catch (error) {
     console.error('Email sending error:', error)
     return false
+  }
+}
+
+// Returns whether the SMTP transport is configured and can authenticate.
+// Used by the email self-test endpoint to surface the exact error.
+export async function verifyEmailTransport(): Promise<{ ok: boolean; demoMode: boolean; error?: string }> {
+  if (DEMO_MODE) {
+    return { ok: false, demoMode: true, error: 'No SMTP credentials configured (EMAIL_FROM / EMAIL_PASSWORD).' }
+  }
+  try {
+    await transporter.verify()
+    return { ok: true, demoMode: false }
+  } catch (error: any) {
+    return { ok: false, demoMode: false, error: error?.message || String(error) }
   }
 }
 

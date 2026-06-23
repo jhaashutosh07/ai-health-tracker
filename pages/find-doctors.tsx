@@ -431,10 +431,20 @@ export default function FindDoctors() {
                   </div>
 
                   {doctor.address && (
-                    <p className="text-xs text-slate-400 mb-3 line-clamp-1 flex items-start gap-1">
+                    <p className="text-xs text-slate-400 mb-2 line-clamp-1 flex items-start gap-1">
                       <MapPin size={10} className="flex-shrink-0 mt-0.5" />
                       {doctor.address}
                     </p>
+                  )}
+
+                  {doctor.phone && (
+                    <a
+                      href={`tel:${doctor.phone}`}
+                      className="text-xs text-slate-600 hover:text-sky-600 mb-3 flex items-center gap-1.5 font-medium"
+                    >
+                      <Phone size={11} className="flex-shrink-0 text-sky-500" />
+                      {doctor.phone}
+                    </a>
                   )}
 
                   {/* AI insight — what this provider offers, in plain language */}
