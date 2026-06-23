@@ -61,11 +61,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           'places.currentOpeningHours.openNow',
           'places.primaryTypeDisplayName',
           'places.types',
+          'places.websiteUri',
+          'places.googleMapsUri',
+          'places.businessStatus',
         ].join(','),
       },
       body: JSON.stringify({
         textQuery,
         maxResultCount: 20,
+        // Bias strongly to the area; we additionally hard-filter by the exact
+        // radius below (Text Search circle is a bias, not a strict limit).
         locationBias: {
           circle: { center: { latitude: lat, longitude: lng }, radius: radiusMeters },
         },
@@ -84,6 +89,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(502).json({ message: `Google Places request failed: ${err?.message || 'network error'}`, fallback: true })
   }
 
+  const radiusKm = radiusMeters / 1000
   const doctors = (data.places || [])
     .map((place: any) => {
       const placeLat = place.location?.latitude ?? 0
@@ -111,10 +117,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         distance: km,
         distanceText: formatDist(km),
         isOpenNow: place.currentOpeningHours?.openNow ?? null,
+        businessStatus: place.businessStatus ?? null,
+        website: place.websiteUri ?? null,
+        mapsUri: place.googleMapsUri ?? null,
         placeId: place.id,
         source: 'google',
       }
     })
+    // Hard-enforce the selected radius (drop anything beyond it) and drop
+    // permanently-closed places.
+    .filter((d: any) => d.distance <= radiusKm && d.businessStatus !== 'CLOSED_PERMANENTLY')
     .sort((a: any, b: any) => a.distance - b.distance)
 
   return res.json({ doctors, total: doctors.length, source: 'google' })

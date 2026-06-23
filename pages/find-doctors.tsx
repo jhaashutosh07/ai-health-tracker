@@ -18,11 +18,27 @@ interface Doctor {
   location: string
   address: string | null
   city: string | null
+  latitude?: number | null
+  longitude?: number | null
   rating: number | null
   reviewCount: number
   consultationFee: number | null
   distance?: number | null
   distanceText?: string | null
+  website?: string | null
+  isOpenNow?: boolean | null
+  source?: string
+  placeId?: string
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
 const SPECIALIZATIONS = [
@@ -97,7 +113,22 @@ export default function FindDoctors() {
       const platformParams = new URLSearchParams()
       if (specialization) platformParams.set('specialization', specialization)
       const platformRes = await fetch(`/api/doctors/search?${platformParams.toString()}`)
-      const platform: Doctor[] = platformRes.ok ? ((await platformRes.json()).doctors || []) : []
+      let platform: Doctor[] = platformRes.ok ? ((await platformRes.json()).doctors || []) : []
+
+      // When a location + radius is set, keep only platform doctors that are
+      // within the radius. Doctors without coordinates (the platform's own
+      // registered doctors, e.g. new sign-ups) are always kept; doctors with
+      // coordinates outside the radius (e.g. directory entries in other cities)
+      // are dropped so the list respects the chosen distance.
+      if (userLocation) {
+        platform = platform
+          .map(d => {
+            if (d.latitude == null || d.longitude == null) return d
+            const km = haversineKm(userLocation.lat, userLocation.lng, d.latitude, d.longitude)
+            return { ...d, distance: km, distanceText: km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km` }
+          })
+          .filter(d => d.latitude == null || d.longitude == null || (d.distance ?? 0) <= radius)
+      }
 
       // 2) Real nearby clinics from Google (only with a location).
       let external: Doctor[] = []
@@ -351,10 +382,24 @@ export default function FindDoctors() {
                   </div>
 
                   {doctor.address && (
-                    <p className="text-xs text-slate-400 mb-4 line-clamp-1 flex items-start gap-1">
+                    <p className="text-xs text-slate-400 mb-3 line-clamp-1 flex items-start gap-1">
                       <MapPin size={10} className="flex-shrink-0 mt-0.5" />
                       {doctor.address}
                     </p>
+                  )}
+
+                  {/* Real ratings summary + link to full Google reviews */}
+                  {doctor.source === 'google' && doctor.rating != null && doctor.placeId && (
+                    <a
+                      href={`https://search.google.com/local/reviews?placeid=${doctor.placeId}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 rounded-xl px-3 py-2 mb-4 transition-colors"
+                    >
+                      <Star size={13} className="text-amber-500" fill="currentColor" />
+                      <span className="text-xs font-semibold text-amber-700">{doctor.rating.toFixed(1)}</span>
+                      <span className="text-xs text-amber-600">· {doctor.reviewCount} Google reviews</span>
+                      <ExternalLink size={11} className="text-amber-500 ml-auto" />
+                    </a>
                   )}
 
                   {/* Actions */}
