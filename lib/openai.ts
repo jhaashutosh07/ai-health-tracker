@@ -60,6 +60,7 @@ When you have enough information (after 3-4 exchanges), provide your final asses
   ],
   "recoveryTimeline": "e.g. Most cases resolve in 5-7 days with rest and OTC medication",
   "recommendation": "self-care|see-doctor-soon|urgent-care|emergency",
+  "recommendedSpecialist": "The single best-fit specialist to consult, chosen from: General Physician, Cardiologist, Dermatologist, Neurologist, Orthopedic, Pediatrician, Psychiatrist, ENT Specialist, Gynecologist, Ophthalmologist. Use General Physician if unsure or for self-care.",
   "advice": "2-3 warm, specific sentences summarising what to do right now",
   "completed": true
 }

@@ -36,6 +36,9 @@ const en: Translations = {
   'nav.analytics':        'Analytics',
   'nav.settings':         'Settings',
   'nav.emergencyCard':    'Emergency Card',
+  'nav.companion':        'Wellbeing Companion',
+  'nav.imageDiagnosis':   'AI Image Diagnosis',
+  'nav.healthReport':     'Health Report',
 
   // Common
   'common.loading':       'Loading…',

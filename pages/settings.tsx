@@ -19,6 +19,31 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [emergencyToken, setEmergencyToken] = useState('')
+  const [sosSending, setSosSending] = useState(false)
+  const [sosMsg, setSosMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  const sendSOS = () => {
+    setSosSending(true)
+    setSosMsg(null)
+    const post = (body: any) =>
+      fetch('/api/emergency/sos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(async r => {
+          const data = await r.json().catch(() => ({}))
+          setSosMsg({ ok: r.ok, text: data.message || (r.ok ? 'SOS sent.' : 'Could not send SOS.') })
+        })
+        .catch(() => setSosMsg({ ok: false, text: 'Could not send SOS. Check your connection.' }))
+        .finally(() => setSosSending(false))
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => post({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        () => post({}), // send without location if denied
+        { timeout: 8000 }
+      )
+    } else {
+      post({})
+    }
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -178,6 +203,35 @@ export default function Settings() {
               {saved && <p className="text-sm text-emerald-600 font-medium">Changes saved successfully</p>}
             </div>
           </div>
+        </div>
+
+        {/* Emergency SOS */}
+        <div className="card p-6 border-red-100">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+              <ShieldAlert size={18} className="text-red-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">One-tap Emergency SOS</h3>
+              <p className="text-sm text-slate-500">
+                Instantly text your emergency contact your live location + medical card. Make sure your emergency contact phone is saved above.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={sendSOS}
+            disabled={sosSending || !emergencyContactPhone}
+            className="btn btn-danger gap-2 disabled:opacity-50"
+          >
+            <ShieldAlert size={15} />
+            {sosSending ? 'Sending alert…' : 'Send Emergency SOS'}
+          </button>
+          {!emergencyContactPhone && (
+            <p className="text-xs text-amber-600 mt-2">Add an emergency contact phone above and save before using SOS.</p>
+          )}
+          {sosMsg && (
+            <p className={`text-sm mt-3 font-medium ${sosMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>{sosMsg.text}</p>
+          )}
         </div>
 
         {/* QR Code card */}

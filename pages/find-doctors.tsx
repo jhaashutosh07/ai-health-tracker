@@ -143,6 +143,16 @@ export default function FindDoctors() {
 
   useEffect(() => { detectLocation() }, [detectLocation])
 
+  // Pre-fill the specialty/search from the URL (e.g. the AI symptom-check
+  // "Find a Cardiologist" button links here with ?specialization=Cardiologist).
+  useEffect(() => {
+    if (!router.isReady) return
+    const sp = router.query.specialization
+    const q = router.query.q
+    if (typeof sp === 'string' && sp) setSpecialization(sp)
+    if (typeof q === 'string' && q) setSearch(q)
+  }, [router.isReady])
+
   // Fetch on mount and whenever filters/location change. We always show the
   // platform's own registered doctors (they're the ones bookable in-app), even
   // before the browser grants geolocation.

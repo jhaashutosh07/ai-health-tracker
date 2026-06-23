@@ -93,6 +93,21 @@ export async function sendAppointmentConfirmationEmail(data: AppointmentEmailDat
   }
 }
 
+// Generic SMS sender (used by Emergency SOS). Returns success/failure so callers
+// can surface whether the alert actually went out.
+export async function sendSMS(to: string, body: string): Promise<{ success: boolean; error?: string }> {
+  if (!twilioClient || !process.env.TWILIO_PHONE_NUMBER) {
+    return { success: false, error: 'SMS service not configured' }
+  }
+  try {
+    const msg = await twilioClient.messages.create({ body, from: process.env.TWILIO_PHONE_NUMBER, to })
+    return { success: !!msg.sid }
+  } catch (error: any) {
+    console.error('SMS send error:', error)
+    return { success: false, error: error?.message || 'Failed to send SMS' }
+  }
+}
+
 export async function sendAppointmentSMS(phone: string, data: AppointmentEmailData) {
   if (!twilioClient) {
     console.log('Twilio not configured, skipping SMS')
