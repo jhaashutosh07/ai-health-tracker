@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { sendSMS } from '@/lib/notifications'
+import { whatsappConfigured, sendEmergencyWhatsApp } from '@/lib/whatsapp'
 import crypto from 'crypto'
 
 // One-tap Emergency SOS: texts the user's emergency contact their live location
@@ -50,19 +51,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     hasLoc ? `Live location: ${mapLink}` : 'Location unavailable.',
     cardLink ? `Medical card: ${cardLink}` : '',
   ].filter(Boolean)
+  const body = lines.join('\n')
 
-  const result = await sendSMS(user.emergencyContactPhone, lines.join('\n'))
+  // Prefer WhatsApp (free, richer, reliable in India), fall back to SMS (Twilio).
+  let channel = ''
+  let result: { success: boolean; error?: string }
+  if (whatsappConfigured()) {
+    channel = 'WhatsApp'
+    result = await sendEmergencyWhatsApp(
+      user.emergencyContactPhone,
+      body,
+      // Template body params (only used if WHATSAPP_TEMPLATE_NAME is set).
+      [name, hasLoc ? mapLink : 'location unavailable', cardLink || 'N/A'],
+    )
+  } else {
+    channel = 'SMS'
+    result = await sendSMS(user.emergencyContactPhone, body)
+  }
 
   if (!result.success) {
+    const notConfigured = result.error === 'SMS service not configured' || result.error === 'WhatsApp not configured'
     return res.status(502).json({
-      message: result.error === 'SMS service not configured'
-        ? 'SMS service is not configured on the server (Twilio).'
-        : `Could not send the alert: ${result.error}`,
+      message: notConfigured
+        ? 'No messaging channel is configured on the server (WhatsApp or Twilio).'
+        : `Could not send the alert via ${channel}: ${result.error}`,
     })
   }
 
   return res.status(200).json({
-    message: `SOS sent to ${user.emergencyContactName || user.emergencyContactPhone}.`,
+    message: `SOS sent to ${user.emergencyContactName || user.emergencyContactPhone} via ${channel}.`,
     sentTo: user.emergencyContactName || user.emergencyContactPhone,
+    channel,
   })
 }
