@@ -65,6 +65,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const recognitionRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([])
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   useEffect(() => { scrollToBottom() }, [messages])
@@ -73,13 +74,54 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
     if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
   }, [])
 
+  // TTS voices load asynchronously in most browsers — keep them cached.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    const load = () => { voicesRef.current = window.speechSynthesis.getVoices() || [] }
+    load()
+    window.speechSynthesis.addEventListener?.('voiceschanged', load)
+    return () => window.speechSynthesis.removeEventListener?.('voiceschanged', load)
+  }, [])
+
+  // Pick the best installed voice for a language (exact region → base language),
+  // e.g. bn-IN → bn-BD → any "bn" voice. Without this, browsers silently fail to
+  // speak languages like Bengali because they don't auto-select a matching voice.
+  const pickVoice = (targetLang: string): SpeechSynthesisVoice | undefined => {
+    const voices = voicesRef.current
+    if (!voices.length) return undefined
+    const lc = targetLang.toLowerCase()
+    const base = lc.split('-')[0]
+    return (
+      voices.find(v => v.lang.toLowerCase() === lc) ||
+      voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith(base)) ||
+      undefined
+    )
+  }
+
   const speak = (text: string) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return
     window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = SPEECH_LANG[lang] || 'en-IN'
-    utterance.rate = 0.95
-    window.speechSynthesis.speak(utterance)
+    const targetLang = SPEECH_LANG[lang] || 'en-IN'
+    const run = () => {
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = targetLang
+      const voice = pickVoice(targetLang)
+      if (voice) utterance.voice = voice
+      utterance.rate = 0.95
+      window.speechSynthesis.speak(utterance)
+    }
+    // Voices may not be loaded on first use — fetch/await them, then speak.
+    if (!voicesRef.current.length) {
+      voicesRef.current = window.speechSynthesis.getVoices() || []
+      if (!voicesRef.current.length) {
+        window.speechSynthesis.addEventListener?.('voiceschanged', () => {
+          voicesRef.current = window.speechSynthesis.getVoices() || []
+          run()
+        }, { once: true })
+        return
+      }
+    }
+    run()
   }
 
   const toggleSpeak = () => {
