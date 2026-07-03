@@ -66,13 +66,36 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
   const recognitionRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const voicesRef = useRef<SpeechSynthesisVoice[]>([])
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   useEffect(() => { scrollToBottom() }, [messages])
   useEffect(() => () => {
     recognitionRef.current?.stop()
-    if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
+    stopSpeaking()
   }, [])
+
+  const stopSpeaking = () => {
+    if (typeof window !== 'undefined') window.speechSynthesis?.cancel()
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null }
+  }
+
+  // Cloud TTS fallback (OpenAI) — used when the browser has no local voice for
+  // the language (e.g. Bengali). Generates real audio server-side and plays it.
+  const speakViaCloud = async (text: string) => {
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      if (!res.ok) return
+      const blob = await res.blob()
+      const audio = new Audio(URL.createObjectURL(blob))
+      audioRef.current = audio
+      audio.play().catch(() => {})
+    } catch { /* best-effort */ }
+  }
 
   // TTS voices load asynchronously in most browsers — keep them cached.
   useEffect(() => {
@@ -99,25 +122,35 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
   }
 
   const speak = (text: string) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return
-    window.speechSynthesis.cancel()
+    if (typeof window === 'undefined') return
+    stopSpeaking()
     const targetLang = SPEECH_LANG[lang] || 'en-IN'
+    let done = false
     const run = () => {
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = targetLang
+      if (done) return
+      done = true
       const voice = pickVoice(targetLang)
-      if (voice) utterance.voice = voice
-      utterance.rate = 0.95
-      window.speechSynthesis.speak(utterance)
+      if (voice && window.speechSynthesis) {
+        // Browser has a matching voice (e.g. English/Hindi) — fast & free.
+        const utterance = new SpeechSynthesisUtterance(text)
+        utterance.lang = targetLang
+        utterance.voice = voice
+        utterance.rate = 0.95
+        window.speechSynthesis.speak(utterance)
+      } else {
+        // No local voice for this language (e.g. Bengali) — use cloud TTS.
+        speakViaCloud(text)
+      }
     }
-    // Voices may not be loaded on first use — fetch/await them, then speak.
-    if (!voicesRef.current.length) {
+    // Wait for voices to load before deciding (they populate asynchronously).
+    if (window.speechSynthesis && !voicesRef.current.length) {
       voicesRef.current = window.speechSynthesis.getVoices() || []
       if (!voicesRef.current.length) {
         window.speechSynthesis.addEventListener?.('voiceschanged', () => {
           voicesRef.current = window.speechSynthesis.getVoices() || []
           run()
         }, { once: true })
+        setTimeout(run, 700) // fallback if the event never fires
         return
       }
     }
@@ -125,7 +158,7 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
   }
 
   const toggleSpeak = () => {
-    if (speakEnabled) window.speechSynthesis?.cancel()
+    if (speakEnabled) stopSpeaking()
     setSpeakEnabled(v => !v)
   }
 
