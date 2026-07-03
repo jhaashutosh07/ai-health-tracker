@@ -40,6 +40,10 @@ import {
   Brain,
   Heart,
   Camera,
+  Mic,
+  FlaskConical,
+  Syringe,
+  Salad,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { LANGUAGES } from '@/lib/i18n/translations'
@@ -48,13 +52,20 @@ const patientNavKeys = [
   { key: 'nav.dashboard',       href: '/dashboard',          icon: Activity },
   { key: 'nav.askAI',           href: '/health-chat',        icon: Brain },
   { key: 'nav.symptomCheck',    href: '/symptom-check',      icon: ClipboardList },
+  { key: 'nav.voice',           href: '/voice',              icon: Mic },
   { key: 'nav.imageDiagnosis',  href: '/image-diagnosis',    icon: Camera },
+  { key: 'nav.secondOpinion',   href: '/second-opinion',     icon: Stethoscope },
   { key: 'nav.vitals',          href: '/vitals',             icon: HeartPulse },
+  { key: 'nav.labTrends',       href: '/lab-trends',         icon: FlaskConical },
+  { key: 'nav.carePrograms',    href: '/care-programs',      icon: HeartPulse },
   { key: 'nav.healthPatterns',  href: '/symptom-patterns',   icon: TrendingUp },
   { key: 'nav.medicineChecker', href: '/medicine-checker',   icon: Pill },
   { key: 'nav.medications',     href: '/medications',        icon: Pill },
+  { key: 'nav.dietPlanner',     href: '/diet-planner',       icon: Salad },
+  { key: 'nav.vaccinations',    href: '/vaccinations',       icon: Syringe },
   { key: 'nav.moodTracker',     href: '/mood-tracker',       icon: Smile },
   { key: 'nav.companion',       href: '/companion',          icon: Heart },
+  { key: 'nav.family',          href: '/family',             icon: Users },
   { key: 'nav.appointments',    href: '/appointments',       icon: Calendar },
   { key: 'nav.findDoctors',     href: '/find-doctors',       icon: Users },
   { key: 'nav.medicalRecords',  href: '/medical-records',    icon: FileText },
@@ -65,6 +76,7 @@ const patientNavKeys = [
 const doctorNavKeys = [
   { key: 'nav.dashboard',    href: '/doctors/dashboard', icon: Activity },
   { key: 'nav.appointments', href: '/doctors/dashboard', icon: Calendar },
+  { key: 'nav.soapNotes',    href: '/doctor/soap',       icon: FileText },
 ]
 
 const quickDial = [

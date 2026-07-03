@@ -39,6 +39,14 @@ const en: Translations = {
   'nav.companion':        'Wellbeing Companion',
   'nav.imageDiagnosis':   'AI Image Diagnosis',
   'nav.healthReport':     'Health Report',
+  'nav.voice':            'Voice Assistant',
+  'nav.secondOpinion':    'AI Second Opinion',
+  'nav.carePrograms':     'Care Programs',
+  'nav.labTrends':        'Lab Trends',
+  'nav.vaccinations':     'Vaccinations',
+  'nav.dietPlanner':      'Diet Planner',
+  'nav.family':           'Family Health',
+  'nav.soapNotes':        'AI SOAP Notes',
 
   // Common
   'common.loading':       'Loading…',
