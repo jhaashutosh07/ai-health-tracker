@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { Salad, Loader2, Sparkles, Utensils, Ban } from 'lucide-react'
 import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Meal { meal: string; items: string[]; note: string }
 interface Plan { title: string; calories: string; meals: Meal[]; avoid: string[]; tips: string[] }
@@ -14,6 +15,7 @@ const PREFS = ['Vegetarian', 'Vegan', 'Non-vegetarian', 'Eggetarian', 'Jain']
 export default function DietPlanner() {
   const { status } = useSession()
   const router = useRouter()
+  const { lang } = useLanguage()
   const [goal, setGoal] = useState(GOALS[0])
   const [conditions, setConditions] = useState('')
   const [preference, setPreference] = useState(PREFS[0])
@@ -25,7 +27,7 @@ export default function DietPlanner() {
   const generate = async () => {
     setLoading(true); setPlan(null)
     try {
-      const res = await fetch('/api/diet-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal, conditions, preference }) })
+      const res = await fetch('/api/diet-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goal, conditions, preference, lang }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
       setPlan(data.plan)

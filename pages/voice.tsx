@@ -52,7 +52,9 @@ export default function VoiceMode() {
   }
 
   const speak = (text: string, onEnd: () => void) => {
-    const voice = pickVoice()
+    // Use the browser voice ONLY for English — device regional voices sound
+    // robotic, so route Hindi/Bengali/regional through natural cloud TTS.
+    const voice = lang === 'en' ? pickVoice() : undefined
     if (voice && window.speechSynthesis) {
       const u = new SpeechSynthesisUtterance(text)
       u.lang = targetLang; u.voice = voice; u.rate = 0.98
@@ -60,7 +62,7 @@ export default function VoiceMode() {
       u.onerror = onEnd
       window.speechSynthesis.speak(u)
     } else {
-      // Cloud TTS for languages without a local voice (e.g. Bengali).
+      // Natural cloud TTS (OpenAI) for non-English / voice-less languages.
       fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) })
         .then(r => r.ok ? r.blob() : Promise.reject())
         .then(blob => {

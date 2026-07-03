@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../auth/[...nextauth]'
 import { openai, CHAT_MODEL } from '@/lib/openai'
+import { AI_LANG_INSTRUCTION, LangCode } from '@/lib/i18n/translations'
 
 // Direct scan for self-harm / crisis language (mental-health specific).
 const CRISIS_RE = /\b(suicide|suicidal|kill myself|end my life|don'?t want to live|want to die|harm myself|hurt myself|self.?harm|no reason to live|better off dead)\b/i
@@ -26,10 +27,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions)
   if (!session?.user) return res.status(401).json({ message: 'Unauthorized' })
 
-  const { messages, recentMood } = req.body
+  const { messages, recentMood, lang } = req.body
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ message: 'messages array required' })
   }
+  const langInstruction = AI_LANG_INSTRUCTION[(lang as LangCode)] || ''
 
   // Independent safety scan of the user's words for self-harm/crisis language.
   const userText = messages.filter((m: any) => m.role === 'user').map((m: any) => m.content).join(' ')
@@ -44,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       model: CHAT_MODEL,
       max_completion_tokens: 350,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT + moodNote },
+        { role: 'system', content: SYSTEM_PROMPT + moodNote + (langInstruction ? `\n\n${langInstruction}` : '') },
         ...messages.slice(-12).map((m: any) => ({ role: m.role as 'user' | 'assistant', content: String(m.content || '') })),
       ],
     })

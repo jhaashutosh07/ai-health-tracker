@@ -833,6 +833,13 @@ const mr: Translations = {
 
 export const translations: Record<LangCode, Translations> = { en, hi, bn, ta, te, mr }
 
+// For AI endpoints that return JSON: translate the human-readable string values
+// into the user's language but keep JSON keys/enums in English (so parsing works).
+export function langValueNote(lang: any): string {
+  const li = AI_LANG_INSTRUCTION[lang as LangCode]
+  return li ? `\n\n${li} Keep all JSON keys and enum values (e.g. "low","high","urgent","routine","normal") in English; translate ONLY the human-readable string values.` : ''
+}
+
 export function getT(lang: LangCode) {
   return function t(key: string, vars?: Record<string, string>): string {
     const str = translations[lang]?.[key] ?? translations.en[key] ?? key

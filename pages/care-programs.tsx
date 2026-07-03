@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { HeartPulse, Loader2, Sparkles, CheckCircle2, Circle, AlertTriangle, Flame } from 'lucide-react'
 import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Plan {
   title: string; summary: string
@@ -17,6 +18,7 @@ const todayKey = () => new Date().toISOString().split('T')[0]
 export default function CarePrograms() {
   const { status } = useSession()
   const router = useRouter()
+  const { lang } = useLanguage()
   const [condition, setCondition] = useState(CONDITIONS[0])
   const [loading, setLoading] = useState(false)
   const [plan, setPlan] = useState<Plan | null>(null)
@@ -36,7 +38,7 @@ export default function CarePrograms() {
   const generate = async () => {
     setLoading(true); setPlan(null); setDone({})
     try {
-      const res = await fetch('/api/care-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ condition }) })
+      const res = await fetch('/api/care-plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ condition, lang }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
       setPlan(data.plan)

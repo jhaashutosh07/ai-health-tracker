@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { Users, Loader2, Stethoscope, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Specialist { specialty: string; opinion: string; likelyCauses: string[]; recommendation: string }
 interface Panel { specialists: Specialist[]; consensus: string; urgency: string; disclaimer?: string }
@@ -18,6 +19,7 @@ const urgencyMeta: Record<string, { label: string; cls: string }> = {
 export default function SecondOpinion() {
   const { status } = useSession()
   const router = useRouter()
+  const { lang } = useLanguage()
   const [caseText, setCaseText] = useState('')
   const [loading, setLoading] = useState(false)
   const [panel, setPanel] = useState<Panel | null>(null)
@@ -28,7 +30,7 @@ export default function SecondOpinion() {
     if (caseText.trim().length < 10) { toast.error('Please describe the case in more detail.'); return }
     setLoading(true); setPanel(null)
     try {
-      const res = await fetch('/api/second-opinion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseText }) })
+      const res = await fetch('/api/second-opinion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ caseText, lang }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)
       setPanel(data.result)

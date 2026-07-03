@@ -26,9 +26,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const speech = await openai.audio.speech.create({
       model,
-      voice: (process.env.OPENAI_TTS_VOICE as any) || 'alloy',
+      voice: (req.body?.voice as any) || (process.env.OPENAI_TTS_VOICE as any) || 'nova',
       input,
-    })
+      // Warm, human delivery — avoids the flat "robotic" sound, especially for
+      // Hindi/Bengali/regional languages. (Supported by gpt-4o-mini-tts.)
+      instructions: 'Speak in a warm, friendly, caring and natural human tone, like a kind health helper. Use a calm, gentle pace and natural intonation. Pronounce the given language naturally.',
+    } as any)
     const buffer = Buffer.from(await speech.arrayBuffer())
     res.setHeader('Content-Type', 'audio/mpeg')
     res.setHeader('Cache-Control', 'private, max-age=3600')

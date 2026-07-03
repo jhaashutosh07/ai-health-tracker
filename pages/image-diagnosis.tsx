@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Camera, Loader2, Upload, AlertTriangle, CheckCircle2, Stethoscope, ArrowRight, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface DiagResult {
   type?: string
@@ -27,6 +28,7 @@ const sevMeta: Record<string, { label: string; cls: string }> = {
 export default function ImageDiagnosis() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { lang } = useLanguage()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [preview, setPreview] = useState<string | null>(null)
@@ -62,7 +64,7 @@ export default function ImageDiagnosis() {
       const res = await fetch('/api/image-diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType, kind }),
+        body: JSON.stringify({ image: base64, mimeType, kind, lang }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message)

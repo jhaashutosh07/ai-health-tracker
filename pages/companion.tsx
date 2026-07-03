@@ -3,6 +3,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { Heart, Send, Loader2, Sparkles, LifeBuoy } from 'lucide-react'
 import AppShell from '@/components/AppShell'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Msg { role: 'user' | 'assistant'; content: string }
 
@@ -16,6 +17,7 @@ const STARTERS = [
 export default function Companion() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { lang } = useLanguage()
   const [messages, setMessages] = useState<Msg[]>([
     { role: 'assistant', content: "Hi, I'm Saathi 💙 your space to check in. How are you really feeling today?" },
   ])
@@ -46,7 +48,7 @@ export default function Companion() {
       const res = await fetch('/api/companion/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next, recentMood }),
+        body: JSON.stringify({ messages: next, recentMood, lang }),
       })
       const data = await res.json()
       setMessages(m => [...m, { role: 'assistant', content: data.message || 'Sorry, I had trouble responding.' }])

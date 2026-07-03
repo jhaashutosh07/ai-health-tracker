@@ -129,9 +129,11 @@ export default function SymptomChat({ onAssessmentComplete, initialMessage }: Sy
     const run = () => {
       if (done) return
       done = true
-      const voice = pickVoice(targetLang)
+      // Browser voices sound robotic for regional languages — use them only for
+      // English; route everything else through natural cloud TTS.
+      const voice = lang === 'en' ? pickVoice(targetLang) : undefined
       if (voice && window.speechSynthesis) {
-        // Browser has a matching voice (e.g. English/Hindi) — fast & free.
+        // Browser has a matching voice (English) — fast & free.
         const utterance = new SpeechSynthesisUtterance(text)
         utterance.lang = targetLang
         utterance.voice = voice

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from './auth/[...nextauth]'
 import { openai, CHAT_MODEL } from '@/lib/openai'
 import { tryParse } from '@/lib/assessment'
+import { langValueNote } from '@/lib/i18n/translations'
 
 // Condition-aware Indian diet plan generator.
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -10,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions)
   if (!session?.user) return res.status(401).json({ message: 'Unauthorized' })
 
-  const { goal, conditions, preference } = req.body
+  const { goal, conditions, preference, lang } = req.body
   const prompt = `Create a 1-day Indian meal plan.
 Goal: ${goal || 'general healthy eating'}. Health conditions: ${conditions || 'none'}. Diet preference: ${preference || 'vegetarian'}.
 Respond ONLY with JSON:
@@ -22,7 +23,7 @@ Respond ONLY with JSON:
   "tips": ["2-3 practical tips"],
   "completed": true
 }
-Rules: real, affordable Indian foods; respect the diet preference; tailor to the conditions (e.g. low-GI for diabetes, low-sodium for BP); no medical claims.`
+Rules: real, affordable Indian foods; respect the diet preference; tailor to the conditions (e.g. low-GI for diabetes, low-sodium for BP); no medical claims.${langValueNote(lang)}`
 
   try {
     const response = await openai.chat.completions.create({ model: CHAT_MODEL, max_completion_tokens: 1200, messages: [{ role: 'user', content: prompt }] })

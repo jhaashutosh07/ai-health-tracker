@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from './auth/[...nextauth]'
 import { openai, CHAT_MODEL } from '@/lib/openai'
 import { tryParse } from '@/lib/assessment'
+import { langValueNote } from '@/lib/i18n/translations'
 
 export const config = { api: { bodyParser: { sizeLimit: '10mb' } } }
 
@@ -16,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const session = await getServerSession(req, res, authOptions)
   if (!session?.user) return res.status(401).json({ message: 'Unauthorized' })
 
-  const { image, mimeType, kind } = req.body
+  const { image, mimeType, kind, lang } = req.body
   if (!image || !mimeType) return res.status(400).json({ message: 'image and mimeType are required' })
   if (!ALLOWED.includes(mimeType)) return res.status(400).json({ message: 'Use a JPG, PNG, or WEBP image.' })
 
@@ -34,7 +35,7 @@ You are NOT making a diagnosis. Respond ONLY with a JSON object, no other text:
   "redFlags": ["specific warning sign that means seek care immediately"],
   "completed": true
 }
-Rules: include 1-3 possibleConditions; keep it honest and cautious; if the image is unclear, say so in observation and set severity low with advice to retake/clarify or see a doctor.`
+Rules: include 1-3 possibleConditions; keep it honest and cautious; if the image is unclear, say so in observation and set severity low with advice to retake/clarify or see a doctor.${langValueNote(lang)}`
 
   try {
     const response = await openai.chat.completions.create({
