@@ -74,16 +74,11 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     },
-    async signIn({ user, account, profile }) {
-      // For OAuth sign-in, ensure user has a role
-      if (account?.provider === "google") {
-        if (!user.role) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { role: "PATIENT" }
-          })
-        }
-      }
+    async signIn() {
+      // New Google users receive role "PATIENT" via the Prisma schema default
+      // when the adapter creates them — no update needed here. (Updating by id
+      // in this callback throws "Record to update not found" on first sign-in,
+      // because the user hasn't been created yet.)
       return true
     }
   },
