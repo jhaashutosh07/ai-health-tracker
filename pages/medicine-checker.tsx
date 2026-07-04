@@ -1,4 +1,4 @@
-import { useState, useEffect, KeyboardEvent } from 'react'
+import { useState, useEffect, useRef, KeyboardEvent } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import {
@@ -14,9 +14,23 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronUp,
+  Camera,
+  Upload,
+  ScanLine,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+
+interface PillResult {
+  identified: boolean
+  name: string
+  genericName: string
+  uses: string[]
+  typicalDosage: string
+  warnings: string[]
+  notes: string
+}
 
 interface Interaction {
   medicines: string[]
@@ -78,6 +92,7 @@ const commonMeds = [
 export default function MedicineChecker() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { lang } = useLanguage()
 
   const [medicines, setMedicines] = useState<string[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -85,9 +100,37 @@ export default function MedicineChecker() {
   const [result, setResult] = useState<CheckResult | null>(null)
   const [expandedInteraction, setExpandedInteraction] = useState<number | null>(null)
 
+  // Pill identifier (photo -> medicine info)
+  const pillFileRef = useRef<HTMLInputElement>(null)
+  const [pillPreview, setPillPreview] = useState<string | null>(null)
+  const [pillLoading, setPillLoading] = useState(false)
+  const [pill, setPill] = useState<PillResult | null>(null)
+
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
   }, [status, router])
+
+  const onPillFile = (file: File) => {
+    if (!file.type.startsWith('image/')) { toast.error('Please choose an image.'); return }
+    if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10MB.'); return }
+    setPill(null)
+    const reader = new FileReader()
+    reader.onload = async () => {
+      const dataUrl = reader.result as string
+      setPillPreview(dataUrl)
+      setPillLoading(true)
+      try {
+        const res = await fetch('/api/pill-identify', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: dataUrl.split(',')[1], mimeType: file.type, lang }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message)
+        setPill(data.result)
+      } catch (e: any) { toast.error(e.message || 'Could not identify the medicine.') } finally { setPillLoading(false) }
+    }
+    reader.readAsDataURL(file)
+  }
 
   const addMedicine = (name?: string) => {
     const val = (name || inputValue).trim()
@@ -162,17 +205,68 @@ export default function MedicineChecker() {
             <Pill size={22} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Medicine Interaction Checker</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Medicine Checker</h1>
             <p className="text-slate-500 text-sm mt-1">
-              Powered by AI — add your medications to check for interactions, contraindications, and safety concerns.
+              Identify a medicine from a photo, and check your medications for interactions and safety — powered by AI.
             </p>
           </div>
+        </div>
+
+        {/* Pill identifier from photo */}
+        <div className="card p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <ScanLine size={17} className="text-violet-500" />
+            <h2 className="font-semibold text-slate-900">Identify a medicine from a photo</h2>
+          </div>
+          <p className="text-sm text-slate-500 -mt-1">Snap a tablet, strip, or box — AI reads it and tells you the name, uses, dosage, and warnings.</p>
+
+          <input ref={pillFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => e.target.files?.[0] && onPillFile(e.target.files[0])} />
+
+          {pillPreview ? (
+            <div className="flex flex-col sm:flex-row gap-4 items-start">
+              <img src={pillPreview} alt="medicine" className="w-32 h-32 object-cover rounded-xl border border-slate-200 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                {pillLoading ? (
+                  <div className="flex items-center gap-2 text-slate-400 text-sm py-6"><Loader2 size={16} className="animate-spin" /> Reading the medicine…</div>
+                ) : pill ? (
+                  <div className="space-y-2.5">
+                    <div>
+                      <p className="font-bold text-slate-900">{pill.name || 'Unknown'}</p>
+                      {pill.genericName && <p className="text-xs text-violet-600 font-medium">{pill.genericName}</p>}
+                      {!pill.identified && <p className="text-[11px] text-amber-600 mt-0.5">Low confidence — verify with a pharmacist.</p>}
+                    </div>
+                    {pill.uses?.length > 0 && <p className="text-sm text-slate-700"><span className="font-semibold">Uses:</span> {pill.uses.join(', ')}</p>}
+                    {pill.typicalDosage && <p className="text-sm text-slate-700"><span className="font-semibold">Typical dosage:</span> {pill.typicalDosage}</p>}
+                    {pill.warnings?.length > 0 && (
+                      <div className="bg-amber-50 rounded-lg px-3 py-2">
+                        <p className="text-[11px] font-bold text-amber-700 uppercase tracking-wide mb-1 flex items-center gap-1"><AlertTriangle size={11} /> Warnings</p>
+                        <ul className="text-xs text-amber-800 space-y-0.5">{pill.warnings.map((w, i) => <li key={i}>• {w}</li>)}</ul>
+                      </div>
+                    )}
+                    {pill.notes && <p className="text-xs text-slate-500">{pill.notes}</p>}
+                    <div className="flex gap-2 pt-1">
+                      {pill.name && (
+                        <button onClick={() => { addMedicine(pill.name); toast.success(`Added ${pill.name} to interaction check`) }} className="btn btn-outline text-xs gap-1.5"><Plus size={13} /> Add to interaction check</button>
+                      )}
+                      <button onClick={() => { setPillPreview(null); setPill(null); pillFileRef.current?.click() }} className="btn btn-outline text-xs gap-1.5"><Camera size={13} /> Try another</button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => pillFileRef.current?.click()} className="w-full border-2 border-dashed border-slate-300 rounded-2xl py-8 flex flex-col items-center gap-2 text-slate-400 hover:border-violet-400 hover:text-violet-500 transition-all">
+              <Upload size={24} />
+              <span className="text-sm font-medium">Take or upload a photo</span>
+              <span className="text-xs">JPG / PNG / WEBP · max 10MB</span>
+            </button>
+          )}
         </div>
 
         {/* Input card */}
         <div className="card p-6 space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Add medicines</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Or add medicines by name</label>
             <div className="flex gap-2">
               <input
                 type="text"
