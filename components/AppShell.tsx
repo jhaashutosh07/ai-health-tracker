@@ -42,7 +42,6 @@ import {
   Camera,
   Mic,
   FlaskConical,
-  Syringe,
   Salad,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -62,10 +61,8 @@ const patientNavKeys = [
   { key: 'nav.medicineChecker', href: '/medicine-checker',   icon: Pill },
   { key: 'nav.medications',     href: '/medications',        icon: Pill },
   { key: 'nav.dietPlanner',     href: '/diet-planner',       icon: Salad },
-  { key: 'nav.vaccinations',    href: '/vaccinations',       icon: Syringe },
   { key: 'nav.moodTracker',     href: '/mood-tracker',       icon: Smile },
   { key: 'nav.companion',       href: '/companion',          icon: Heart },
-  { key: 'nav.family',          href: '/family',             icon: Users },
   { key: 'nav.appointments',    href: '/appointments',       icon: Calendar },
   { key: 'nav.findDoctors',     href: '/find-doctors',       icon: Users },
   { key: 'nav.medicalRecords',  href: '/medical-records',    icon: FileText },
