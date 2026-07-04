@@ -30,6 +30,8 @@ interface Doctor {
   experience: number
   location: string
   city: string | null
+  latitude?: number | null
+  longitude?: number | null
   rating: number | null
   reviewCount: number
   consultationFee: number | null
@@ -97,7 +99,18 @@ export default function NewAppointment() {
       })
       const res = await fetch(`/api/doctors/search?${params}`)
       const data = await res.json()
-      if (res.ok) setDoctors(data.doctors)
+      if (res.ok) {
+        const docs: Doctor[] = data.doctors || []
+        // Show the platform's own registered doctors (which have no map
+        // coordinates) at the top — otherwise distance-sorting buries them at
+        // the very bottom of the directory and they look "missing".
+        docs.sort((a, b) => {
+          const aReg = a.latitude == null && a.longitude == null ? 0 : 1
+          const bReg = b.latitude == null && b.longitude == null ? 0 : 1
+          return aReg - bReg
+        })
+        setDoctors(docs)
+      }
     } catch (e) {
       console.error(e)
     } finally {
