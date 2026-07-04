@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, useMemo, FormEvent } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
@@ -39,6 +39,14 @@ interface Doctor {
   distanceText?: string | null
 }
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 const SPECIALIZATIONS = [
   'All Specializations',
   'General Practitioner',
@@ -57,6 +65,7 @@ export default function NewAppointment() {
   const { doctorId, symptomLogId } = router.query
 
   const [doctors, setDoctors] = useState<Doctor[]>([])
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null)
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -77,9 +86,37 @@ export default function NewAppointment() {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
   }, [status, router])
 
+  // Detect location (same as Find Doctors) so we can order by distance.
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      pos => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {},
+      { timeout: 8000 }
+    )
+  }, [])
+
   useEffect(() => {
     fetchDoctors()
   }, [specialization, searchName, sortBy])
+
+  // Order like Find Doctors: your registered doctors first, then the rest
+  // nearest-first by your location (falls back to the server order otherwise).
+  const orderedDoctors = useMemo(() => {
+    const list = doctors.map(d => {
+      if (userLocation && d.latitude != null && d.longitude != null) {
+        const km = haversineKm(userLocation.lat, userLocation.lng, d.latitude, d.longitude)
+        return { ...d, distance: km, distanceText: km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km` }
+      }
+      return d
+    })
+    return list.sort((a, b) => {
+      const aReg = a.latitude == null && a.longitude == null ? 0 : 1
+      const bReg = b.latitude == null && b.longitude == null ? 0 : 1
+      if (aReg !== bReg) return aReg - bReg           // registered (no coords) first
+      return (a.distance ?? Infinity) - (b.distance ?? Infinity) // then nearest first
+    })
+  }, [doctors, userLocation])
 
   useEffect(() => {
     if (doctorId && doctors.length > 0) {
@@ -99,18 +136,7 @@ export default function NewAppointment() {
       })
       const res = await fetch(`/api/doctors/search?${params}`)
       const data = await res.json()
-      if (res.ok) {
-        const docs: Doctor[] = data.doctors || []
-        // Show the platform's own registered doctors (which have no map
-        // coordinates) at the top — otherwise distance-sorting buries them at
-        // the very bottom of the directory and they look "missing".
-        docs.sort((a, b) => {
-          const aReg = a.latitude == null && a.longitude == null ? 0 : 1
-          const bReg = b.latitude == null && b.longitude == null ? 0 : 1
-          return aReg - bReg
-        })
-        setDoctors(docs)
-      }
+      if (res.ok) setDoctors(data.doctors || [])
     } catch (e) {
       console.error(e)
     } finally {
@@ -244,12 +270,12 @@ export default function NewAppointment() {
                       <Loader2 size={16} className="animate-spin" />
                       <span className="text-sm">Searching doctors…</span>
                     </div>
-                  ) : doctors.length === 0 ? (
+                  ) : orderedDoctors.length === 0 ? (
                     <div className="text-center py-12">
                       <p className="text-slate-500 text-sm">No doctors found. Try a different search.</p>
                     </div>
                   ) : (
-                    doctors.map(doc => {
+                    orderedDoctors.map(doc => {
                       const isSelected = selectedDoctor?.id === doc.id
                       return (
                         <button
