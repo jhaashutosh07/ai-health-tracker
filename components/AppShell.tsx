@@ -222,20 +222,23 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
   const currentPath = router.pathname
 
   const Sidebar = () => (
-    <aside className="flex flex-col h-full bg-slate-900 w-64 flex-shrink-0">
+    <aside className="flex flex-col h-full w-64 flex-shrink-0 relative overflow-hidden"
+      style={{ backgroundImage: 'linear-gradient(180deg, #0b1220 0%, #0f172a 55%, #131c34 100%)' }}>
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute -top-16 -left-10 w-56 h-56 rounded-full blur-3xl" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.35), transparent 70%)' }} />
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="w-8 h-8 bg-sky-500 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Activity size={16} className="text-white" />
+      <div className="relative flex items-center gap-3 px-5 py-5 border-b border-white/10">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 brand-gradient" style={{ boxShadow: '0 6px 18px -4px rgba(99,102,241,0.6)' }}>
+          <Activity size={17} className="text-white" />
         </div>
-        <span className="text-white font-bold text-lg tracking-tight">HealthAI</span>
-        <span className="ml-auto bg-sky-500/20 text-sky-300 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-sky-500/30">
+        <span className="text-white font-extrabold text-lg tracking-tight">Health<span className="text-gradient">AI</span></span>
+        <span className="ml-auto bg-white/10 text-sky-200 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-white/15">
           AI
         </span>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-thin">
+      <nav className="relative flex-1 px-3 py-4 space-y-0.5 overflow-y-auto scrollbar-thin">
         {navKeys.map(({ key, href, icon: Icon }) => {
           const active = currentPath === href
           return (
