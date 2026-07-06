@@ -23,6 +23,7 @@ import {
 import AppShell from '@/components/AppShell'
 import { SkeletonDashboard } from '@/components/Skeleton'
 import { useAppointmentUpdates } from '@/hooks/useAppointmentUpdates'
+import WatchDemo from '@/components/WatchDemo'
 
 interface Appointment {
   id: string
@@ -293,6 +294,7 @@ export default function Dashboard() {
               <p className="text-white/70 mt-2 text-sm max-w-md">Talk to AI, track your health, and reach verified doctors — all in one place.</p>
               <div className="flex flex-wrap gap-2.5 mt-5">
                 <Link href="/symptom-check" className="btn bg-white text-slate-900 hover:bg-white/90 gap-2 shadow-lg"><Activity size={15} /> Check symptoms</Link>
+                <WatchDemo />
                 <Link href="/voice" className="btn glass text-white gap-2 hover:bg-white/20"><Mic size={15} /> Voice assistant</Link>
                 <Link href="/image-diagnosis" className="btn glass text-white gap-2 hover:bg-white/20"><Camera size={15} /> Scan</Link>
               </div>
