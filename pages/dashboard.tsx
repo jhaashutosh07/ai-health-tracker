@@ -16,6 +16,9 @@ import {
   Pill,
   Smile,
   ShieldCheck,
+  Mic,
+  Sparkles,
+  Camera,
 } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import { SkeletonDashboard } from '@/components/Skeleton'
@@ -164,6 +167,12 @@ export default function Dashboard() {
     emerald: 'bg-emerald-500',
     amber:   'bg-amber-500',
   }
+  const gradIcon: Record<string, string> = {
+    sky:     'bg-gradient-to-br from-sky-400 to-indigo-500 shadow-lg shadow-indigo-500/25',
+    violet:  'bg-gradient-to-br from-violet-400 to-fuchsia-500 shadow-lg shadow-fuchsia-500/25',
+    emerald: 'bg-gradient-to-br from-emerald-400 to-teal-500 shadow-lg shadow-teal-500/25',
+    amber:   'bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-orange-500/25',
+  }
 
   const calcHealthScore = () => {
     if (loading) return null
@@ -267,131 +276,79 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Welcome */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Good day, {session?.user?.name?.split(' ')[0] || 'there'} 👋
-            </h1>
-            <p className="text-slate-500 mt-1 text-sm">Here's what's happening with your health today.</p>
+        {/* Hero */}
+        <div className="relative overflow-hidden rounded-3xl p-6 lg:p-8 text-white fade-up glow-ring"
+          style={{ backgroundImage: 'linear-gradient(135deg, #0b1220 0%, #1e1b4b 55%, #0e7490 130%)' }}>
+          <div className="blob" style={{ width: 240, height: 240, top: -80, right: -40, background: 'radial-gradient(circle, rgba(99,102,241,0.55), transparent 70%)' }} />
+          <div className="blob" style={{ width: 200, height: 200, bottom: -70, left: '30%', background: 'radial-gradient(circle, rgba(14,165,233,0.45), transparent 70%)', animationDelay: '3s' }} />
+
+          <div className="relative flex flex-col lg:flex-row lg:items-center gap-6 justify-between">
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full glass text-white/90 mb-3">
+                <Sparkles size={12} /> Your AI Health Companion
+              </span>
+              <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight">
+                Good day, {session?.user?.name?.split(' ')[0] || 'there'} 👋
+              </h1>
+              <p className="text-white/70 mt-2 text-sm max-w-md">Talk to AI, track your health, and reach verified doctors — all in one place.</p>
+              <div className="flex flex-wrap gap-2.5 mt-5">
+                <Link href="/symptom-check" className="btn bg-white text-slate-900 hover:bg-white/90 gap-2 shadow-lg"><Activity size={15} /> Check symptoms</Link>
+                <Link href="/voice" className="btn glass text-white gap-2 hover:bg-white/20"><Mic size={15} /> Voice assistant</Link>
+                <Link href="/image-diagnosis" className="btn glass text-white gap-2 hover:bg-white/20"><Camera size={15} /> Scan</Link>
+              </div>
+            </div>
+
+            {/* Conic health-score ring */}
+            {healthScore !== null && (
+              <div className="flex-shrink-0 self-center lg:self-auto">
+                <div className="relative w-32 h-32 rounded-full"
+                  style={{ background: `conic-gradient(${healthScore >= 80 ? '#34d399' : healthScore >= 60 ? '#fbbf24' : '#fb7185'} ${healthScore * 3.6}deg, rgba(255,255,255,0.14) 0deg)` }}>
+                  <div className="absolute inset-[10px] rounded-full flex flex-col items-center justify-center" style={{ background: 'rgba(2,6,23,0.72)' }}>
+                    <span className="text-4xl font-black leading-none">{healthScore}</span>
+                    <span className="text-[10px] text-white/70 mt-1 uppercase tracking-wide">{scoreLabel}</span>
+                  </div>
+                </div>
+                <p className="text-center text-[11px] text-white/60 mt-2 flex items-center justify-center gap-1"><ShieldCheck size={11} /> AI Health Score</p>
+              </div>
+            )}
           </div>
-          <Link
-            href="/symptom-check"
-            className="hidden sm:flex btn btn-primary gap-2"
-          >
-            <Activity size={15} />
-            Check symptoms
-          </Link>
         </div>
 
-        {/* Metric cards + health score */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {metricCards.map(({ label, value, change, icon: Icon, color }) => (
-            <div key={label} className="card p-5">
-              <div className="flex items-start justify-between mb-4">
-                <div className={`w-9 h-9 rounded-xl ${iconBg[color]} flex items-center justify-center flex-shrink-0`}>
-                  <Icon size={16} className="text-white" />
-                </div>
+        {/* Metric cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {metricCards.map(({ label, value, change, icon: Icon, color }, i) => (
+            <div key={label} className="card card-hover p-5 fade-up" style={{ animationDelay: `${i * 70}ms` }}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${gradIcon[color]}`}>
+                <Icon size={17} className="text-white" />
               </div>
               <p className="text-3xl font-extrabold text-slate-900">{value}</p>
               <p className="text-xs text-slate-500 mt-1">{label}</p>
               <p className="text-xs text-slate-400 mt-0.5">{change}</p>
             </div>
           ))}
-
-          {/* AI Health Score */}
-          <div className="card p-5 col-span-2 lg:col-span-1 flex flex-col">
-            <div className="flex items-center gap-2 mb-3">
-              <ShieldCheck size={15} className="text-sky-500" />
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">AI Health Score</p>
-            </div>
-            {healthScore !== null ? (
-              <>
-                <p className={`text-4xl font-black ${scoreColor}`}>{healthScore}</p>
-                <p className={`text-xs font-semibold mt-1 ${scoreColor}`}>{scoreLabel}</p>
-                <div className="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ${
-                      healthScore >= 80 ? 'bg-emerald-500' :
-                      healthScore >= 60 ? 'bg-amber-500' :
-                      'bg-red-500'
-                    }`}
-                    style={{ width: `${healthScore}%` }}
-                  />
-                </div>
-                {sparklinePath && (
-                  <div className="mt-3 flex items-end gap-2">
-                    <svg viewBox="0 0 100 28" className="w-full h-7" preserveAspectRatio="none">
-                      <polyline
-                        points={sparklinePath}
-                        fill="none"
-                        stroke={trendingUp ? '#10b981' : '#ef4444'}
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    </svg>
-                    <TrendingUp size={13} className={`flex-shrink-0 ${trendingUp ? 'text-emerald-500' : 'text-red-500 rotate-180'}`} />
-                  </div>
-                )}
-                <p className="text-[10px] text-slate-400 mt-2">
-                  {sparklinePath ? 'Trend across recent checks' : 'Based on recent activity'}
-                </p>
-              </>
-            ) : (
-              <p className="text-xs text-slate-400 mt-2">Log activity to see score</p>
-            )}
-          </div>
         </div>
 
         {/* AI Feature cards */}
         <div>
           <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">AI-Powered Tools</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/symptom-check" className="card p-5 flex items-center gap-4 hover:border-sky-200 hover:shadow-md transition-all group">
-              <div className="w-10 h-10 rounded-xl bg-sky-500 flex items-center justify-center flex-shrink-0">
-                <ClipboardList size={18} className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm">Symptom Check</p>
-                <p className="text-xs text-slate-500">AI analysis + voice</p>
-              </div>
-              <ArrowRight size={16} className="text-slate-300 group-hover:text-sky-500 transition-colors flex-shrink-0" />
-            </Link>
-
-            <Link href="/medicine-checker" className="card p-5 flex items-center gap-4 hover:border-violet-200 hover:shadow-md transition-all group">
-              <div className="w-10 h-10 rounded-xl bg-violet-500 flex items-center justify-center flex-shrink-0">
-                <Pill size={18} className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm">Medicine Checker</p>
-                <p className="text-xs text-slate-500">Drug interaction AI</p>
-              </div>
-              <ArrowRight size={16} className="text-slate-300 group-hover:text-violet-500 transition-colors flex-shrink-0" />
-            </Link>
-
-            <Link href="/mood-tracker" className="card p-5 flex items-center gap-4 hover:border-pink-200 hover:shadow-md transition-all group">
-              <div className="w-10 h-10 rounded-xl bg-pink-500 flex items-center justify-center flex-shrink-0">
-                <Smile size={18} className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm">Mood Tracker</p>
-                <p className="text-xs text-slate-500">Mental health AI</p>
-              </div>
-              <ArrowRight size={16} className="text-slate-300 group-hover:text-pink-500 transition-colors flex-shrink-0" />
-            </Link>
-
-            <Link href="/appointments/new" className="card p-5 flex items-center gap-4 hover:border-emerald-200 hover:shadow-md transition-all group">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                <Calendar size={18} className="text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 text-sm">Book Appointment</p>
-                <p className="text-xs text-slate-500">Find a specialist</p>
-              </div>
-              <ArrowRight size={16} className="text-slate-300 group-hover:text-emerald-500 transition-colors flex-shrink-0" />
-            </Link>
+            {[
+              { href: '/symptom-check', icon: ClipboardList, title: 'Symptom Check', sub: 'AI analysis + voice', grad: 'from-sky-400 to-indigo-500', hov: 'group-hover:text-indigo-500' },
+              { href: '/medicine-checker', icon: Pill, title: 'Medicine Checker', sub: 'Identify + interactions', grad: 'from-violet-400 to-fuchsia-500', hov: 'group-hover:text-fuchsia-500' },
+              { href: '/companion', icon: Smile, title: 'Wellbeing Companion', sub: 'Mental health AI', grad: 'from-pink-400 to-rose-500', hov: 'group-hover:text-rose-500' },
+              { href: '/appointments/new', icon: Calendar, title: 'Book Appointment', sub: 'Verified doctors', grad: 'from-emerald-400 to-teal-500', hov: 'group-hover:text-teal-500' },
+            ].map(({ href, icon: Icon, title, sub, grad, hov }) => (
+              <Link key={href} href={href} className="card card-hover p-5 flex items-center gap-4 group">
+                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${grad} flex items-center justify-center flex-shrink-0 shadow-lg shadow-slate-900/10`}>
+                  <Icon size={19} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-900 text-sm">{title}</p>
+                  <p className="text-xs text-slate-500">{sub}</p>
+                </div>
+                <ArrowRight size={16} className={`text-slate-300 ${hov} transition-all group-hover:translate-x-0.5 flex-shrink-0`} />
+              </Link>
+            ))}
           </div>
         </div>
 
