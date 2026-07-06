@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Play, X, Film } from 'lucide-react'
+import { Play, X } from 'lucide-react'
+import DemoTour from './DemoTour'
 
-// Configure the demo video via env (a YouTube / Loom / Vimeo link, or a direct
-// .mp4/.webm URL), or just drop the file at /public/demo.mp4.
-const RAW = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL || '/demo.mp4'
+// A real demo video (YouTube / Loom / Vimeo link or a direct .mp4/.webm URL, or
+// a file at /public/demo.mp4) takes priority; otherwise we play the built-in
+// AI-narrated animated walkthrough.
+const RAW = process.env.NEXT_PUBLIC_DEMO_VIDEO_URL || ''
 
 function toEmbed(url: string): string | null {
   const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/)
@@ -25,7 +27,8 @@ export default function WatchDemo({ className }: { className?: string }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
-  const embed = toEmbed(RAW)
+  const hasVideo = !!RAW
+  const embed = hasVideo ? toEmbed(RAW) : null
 
   return (
     <>
@@ -57,20 +60,13 @@ export default function WatchDemo({ className }: { className?: string }) {
               <X size={18} />
             </button>
 
-            {embed && !failed ? (
+            {hasVideo && embed && !failed ? (
               <iframe src={embed} className="w-full h-full" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen />
-            ) : !failed ? (
+            ) : hasVideo && !failed ? (
               <video src={RAW} controls autoPlay playsInline className="w-full h-full object-contain bg-black" onError={() => setFailed(true)} />
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-center text-white/80 gap-3 px-6"
-                style={{ backgroundImage: 'linear-gradient(135deg,#0b1220,#1e1b4b 60%,#0e7490)' }}>
-                <Film size={40} className="text-white/60" />
-                <p className="font-semibold text-white">Demo video not set yet</p>
-                <p className="text-xs text-white/60 max-w-sm">
-                  Add a video by setting <code className="bg-white/10 px-1.5 py-0.5 rounded">NEXT_PUBLIC_DEMO_VIDEO_URL</code> to a
-                  YouTube / Loom / Vimeo link, or dropping your screen recording at <code className="bg-white/10 px-1.5 py-0.5 rounded">/public/demo.mp4</code>.
-                </p>
-              </div>
+              // No real video configured — play the built-in AI-narrated walkthrough.
+              <DemoTour />
             )}
           </div>
         </div>
