@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
-import { Mic, Square, Loader2, Volume2, Ear } from 'lucide-react'
+import { Mic, Square, Loader2, Volume2, Ear, Stethoscope, AlertTriangle, CheckCircle2, Circle, Play } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
@@ -27,6 +27,40 @@ export default function VoiceMode() {
   const messagesRef = useRef<Msg[]>([])
 
   useEffect(() => { messagesRef.current = messages }, [messages])
+
+  // Cough & breathing check
+  const [coughType, setCoughType] = useState('Dry')
+  const [duration, setDuration] = useState('Under 1 week')
+  const [flags, setFlags] = useState<Record<string, boolean>>({})
+  const [recording, setRecording] = useState(false)
+  const [clipUrl, setClipUrl] = useState<string | null>(null)
+  const [coughLoading, setCoughLoading] = useState(false)
+  const [coughResult, setCoughResult] = useState<any>(null)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+
+  const toggleRecord = async () => {
+    if (recording) { recorderRef.current?.stop(); return }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const rec = new MediaRecorder(stream)
+      recorderRef.current = rec; chunksRef.current = []
+      rec.ondataavailable = e => chunksRef.current.push(e.data)
+      rec.onstop = () => { setClipUrl(URL.createObjectURL(new Blob(chunksRef.current, { type: 'audio/webm' }))); stream.getTracks().forEach(t => t.stop()); setRecording(false) }
+      rec.start(); setRecording(true)
+      setTimeout(() => { if (recorderRef.current?.state === 'recording') recorderRef.current.stop() }, 8000)
+    } catch { /* mic denied */ }
+  }
+
+  const runCoughCheck = async () => {
+    setCoughLoading(true); setCoughResult(null)
+    try {
+      const features = { coughType, duration, ...Object.fromEntries(Object.entries(flags).filter(([, v]) => v)) }
+      const res = await fetch('/api/cough-check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ features, lang }) })
+      const data = await res.json()
+      if (res.ok) setCoughResult(data.result)
+    } finally { setCoughLoading(false) }
+  }
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -180,6 +214,66 @@ export default function VoiceMode() {
             ))}
           </div>
         )}
+
+        {/* Cough & breathing check */}
+        <div className="w-full mt-10 card p-5 space-y-4 text-left">
+          <div className="flex items-center gap-2">
+            <Stethoscope size={17} className="text-teal-500" />
+            <h2 className="font-semibold text-slate-900">Cough &amp; Breathing Check</h2>
+          </div>
+          <p className="text-xs text-slate-500 -mt-2">Record your cough and describe it — AI gives guidance based on the pattern. (Not sound analysis or a diagnosis.)</p>
+
+          <div className="flex items-center gap-3">
+            <button onClick={toggleRecord} className={`flex items-center gap-2 text-sm font-semibold px-3 py-2 rounded-xl ${recording ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+              {recording ? <><Square size={13} /> Stop</> : <><Circle size={13} className="fill-red-500 text-red-500" /> Record cough</>}
+            </button>
+            {clipUrl && <audio src={clipUrl} controls className="h-8" />}
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-600 mb-1.5">Cough type</p>
+              <div className="flex flex-wrap gap-2">
+                {['Dry', 'Wet / with phlegm', 'Barking', 'Wheezing'].map(t => (
+                  <button key={t} onClick={() => setCoughType(t)} className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 ${coughType === t ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-500'}`}>{t}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-600 mb-1.5">Duration</p>
+              <div className="flex flex-wrap gap-2">
+                {['Under 1 week', '1–3 weeks', 'Over 3 weeks'].map(d => (
+                  <button key={d} onClick={() => setDuration(d)} className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 ${duration === d ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 text-slate-500'}`}>{d}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-600 mb-1.5">Also experiencing</p>
+              <div className="flex flex-wrap gap-2">
+                {['Fever', 'Breathlessness', 'Chest pain', 'Coughing blood'].map(f => (
+                  <button key={f} onClick={() => setFlags(s => ({ ...s, [f]: !s[f] }))} className={`px-3 py-1.5 rounded-full text-xs font-medium border-2 ${flags[f] ? 'border-red-400 bg-red-50 text-red-600' : 'border-slate-200 text-slate-500'}`}>{f}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <button onClick={runCoughCheck} disabled={coughLoading} className="btn btn-primary gap-2 disabled:opacity-50">
+            {coughLoading ? <><Loader2 size={15} className="animate-spin" /> Analyzing…</> : <><Stethoscope size={15} /> Get AI note</>}
+          </button>
+
+          {coughResult && (
+            <div className="space-y-3 pt-1">
+              <p className="text-sm text-slate-700 leading-relaxed">{coughResult.note}</p>
+              {coughResult.possibleCauses?.length > 0 && <p className="text-xs text-slate-600"><span className="font-semibold">Possible causes:</span> {coughResult.possibleCauses.join(', ')}</p>}
+              {coughResult.selfCare?.length > 0 && (
+                <div className="bg-sky-50 rounded-xl p-3"><p className="text-[10px] font-bold text-sky-600 uppercase tracking-wide mb-1 flex items-center gap-1"><CheckCircle2 size={11} /> Self-care</p><ul className="text-xs text-slate-700 space-y-0.5">{coughResult.selfCare.map((s: string, i: number) => <li key={i}>• {s}</li>)}</ul></div>
+              )}
+              {coughResult.redFlags?.length > 0 && (
+                <div className="bg-red-50 rounded-xl p-3"><p className="text-[10px] font-bold text-red-600 uppercase tracking-wide mb-1 flex items-center gap-1"><AlertTriangle size={11} /> See a doctor urgently if</p><ul className="text-xs text-red-700 space-y-0.5">{coughResult.redFlags.map((s: string, i: number) => <li key={i}>• {s}</li>)}</ul></div>
+              )}
+            </div>
+          )}
+        </div>
 
         <p className="text-[11px] text-slate-400 mt-6 text-center">Works best in Chrome. In an emergency call 112.</p>
       </div>

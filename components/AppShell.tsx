@@ -43,8 +43,13 @@ import {
   Mic,
   FlaskConical,
   Salad,
+  ShieldCheck,
+  Award,
+  QrCode,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import FloatingAssistant from '@/components/FloatingAssistant'
+import CommandPalette from '@/components/CommandPalette'
 import { LANGUAGES } from '@/lib/i18n/translations'
 
 const patientNavKeys = [
@@ -54,8 +59,10 @@ const patientNavKeys = [
   { key: 'nav.voice',           href: '/voice',              icon: Mic },
   { key: 'nav.imageDiagnosis',  href: '/image-diagnosis',    icon: Camera },
   { key: 'nav.secondOpinion',   href: '/second-opinion',     icon: Stethoscope },
+  { key: 'nav.screenings',      href: '/screenings',         icon: Brain },
   { key: 'nav.vitals',          href: '/vitals',             icon: HeartPulse },
   { key: 'nav.labTrends',       href: '/lab-trends',         icon: FlaskConical },
+  { key: 'nav.riskCalc',        href: '/risk-calculators',   icon: ShieldCheck },
   { key: 'nav.carePrograms',    href: '/care-programs',      icon: HeartPulse },
   { key: 'nav.healthPatterns',  href: '/symptom-patterns',   icon: TrendingUp },
   { key: 'nav.medicineChecker', href: '/medicine-checker',   icon: Pill },
@@ -67,6 +74,8 @@ const patientNavKeys = [
   { key: 'nav.findDoctors',     href: '/find-doctors',       icon: Users },
   { key: 'nav.medicalRecords',  href: '/medical-records',    icon: FileText },
   { key: 'nav.healthReport',    href: '/health-report',      icon: FileText },
+  { key: 'nav.passport',        href: '/health-passport',    icon: QrCode },
+  { key: 'nav.achievements',    href: '/achievements',       icon: Award },
   { key: 'nav.analytics',       href: '/analytics',          icon: BarChart2 },
 ]
 
@@ -305,6 +314,10 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
+      {/* Global overlays */}
+      <CommandPalette />
+      <FloatingAssistant />
+
       {/* Desktop sidebar */}
       <div className="hidden lg:flex flex-col h-full">
         <Sidebar />

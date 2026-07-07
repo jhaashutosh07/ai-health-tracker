@@ -47,6 +47,10 @@ const en: Translations = {
   'nav.dietPlanner':      'Diet Planner',
   'nav.family':           'Family Health',
   'nav.soapNotes':        'AI SOAP Notes',
+  'nav.riskCalc':         'Risk Calculators',
+  'nav.screenings':       'MH Screenings',
+  'nav.achievements':     'Achievements',
+  'nav.passport':         'Health Passport',
 
   // Common
   'common.loading':       'Loading…',

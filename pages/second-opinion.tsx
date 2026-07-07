@@ -51,6 +51,17 @@ export default function SecondOpinion() {
           </div>
         </div>
 
+        {/* What it is */}
+        <div className="card p-5 bg-violet-50/50 border-violet-100">
+          <p className="text-sm font-semibold text-violet-800 mb-1">What is the AI Second-Opinion Panel?</p>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Instead of a single answer, this convenes a <strong>virtual panel of AI specialists</strong> — it picks the 3 most relevant
+            specialties for your case (e.g. Cardiologist, Neurologist, Gastroenterologist), each gives an <strong>independent perspective</strong>,
+            and then the panel <strong>synthesizes a consensus</strong> with an urgency level. Great for complex or multi-system symptoms where
+            different specialties might see it differently. It's AI guidance to help you decide who to consult — not a medical diagnosis.
+          </p>
+        </div>
+
         <div className="card p-5 space-y-3">
           <textarea value={caseText} onChange={e => setCaseText(e.target.value)} rows={5}
             placeholder="Describe symptoms, duration, age, existing conditions, medications, and any test results…"

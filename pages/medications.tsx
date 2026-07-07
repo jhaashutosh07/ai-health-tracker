@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import {
@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Sparkles,
   X,
+  ScanLine,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import AppShell from '@/components/AppShell'
@@ -55,6 +56,32 @@ export default function Medications() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [saving, setSaving] = useState(false)
+  const rxFileRef = useRef<HTMLInputElement>(null)
+  const [scanning, setScanning] = useState(false)
+
+  const scanPrescription = (file: File) => {
+    if (!file.type.startsWith('image/')) { toast.error('Please choose an image.'); return }
+    const reader = new FileReader()
+    reader.onload = async () => {
+      setScanning(true)
+      try {
+        const res = await fetch('/api/prescription-scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: (reader.result as string).split(',')[1], mimeType: file.type }) })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.message)
+        const meds = data.medicines || []
+        if (!meds.length) { toast.error('No medicines detected. Try a clearer photo.'); return }
+        let added = 0
+        for (const m of meds) {
+          const r = await fetch('/api/medications', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: m.name, dosage: m.dosage || '—', frequency: m.frequency, times: (m.times?.length ? m.times : ['09:00']), instructions: m.instructions || undefined }) })
+          if (r.ok) added++
+        }
+        await fetchMedications()
+        toast.success(`Added ${added} medicine${added !== 1 ? 's' : ''} from your prescription`)
+      } catch (e: any) { toast.error(e.message || 'Could not scan prescription.') } finally { setScanning(false) }
+    }
+    reader.readAsDataURL(file)
+  }
   const [checking, setChecking] = useState(false)
   const [interactions, setInteractions] = useState<InteractionResult | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null)
@@ -172,7 +199,12 @@ export default function Medications() {
             <h1 className="text-2xl font-bold text-slate-900">My Medications</h1>
             <p className="text-slate-500 mt-1 text-sm">Track your medicines, log doses, and check for interactions with AI.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <input ref={rxFileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => e.target.files?.[0] && scanPrescription(e.target.files[0])} />
+            <button onClick={() => rxFileRef.current?.click()} disabled={scanning} className="btn btn-outline gap-2 disabled:opacity-50">
+              {scanning ? <Loader2 size={15} className="animate-spin" /> : <ScanLine size={15} />}
+              {scanning ? 'Reading…' : 'Scan prescription'}
+            </button>
             {medications.length > 0 && (
               <button onClick={checkInteractions} disabled={checking} className="btn bg-violet-600 hover:bg-violet-700 text-white gap-2 disabled:opacity-50">
                 {checking ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}

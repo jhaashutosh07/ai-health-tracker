@@ -24,6 +24,7 @@ import AppShell from '@/components/AppShell'
 import { SkeletonDashboard } from '@/components/Skeleton'
 import { useAppointmentUpdates } from '@/hooks/useAppointmentUpdates'
 import WatchDemo from '@/components/WatchDemo'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface Appointment {
   id: string
@@ -76,6 +77,18 @@ export default function Dashboard() {
   const [followUp, setFollowUp] = useState<FollowUp | null>(null)
   const [followUpResult, setFollowUpResult] = useState<{ escalate: boolean; message: string } | null>(null)
   const [followUpSending, setFollowUpSending] = useState(false)
+  const { lang } = useLanguage()
+  const [briefing, setBriefing] = useState('')
+
+  useEffect(() => {
+    if (!session?.user?.id) return
+    const key = `healthai_briefing_${new Date().toISOString().split('T')[0]}_${lang}`
+    const cached = typeof window !== 'undefined' ? localStorage.getItem(key) : null
+    if (cached) { setBriefing(cached); return }
+    fetch(`/api/daily-briefing?lang=${lang}`).then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.briefing) { setBriefing(d.briefing); try { localStorage.setItem(key, d.briefing) } catch {} }
+    }).catch(() => {})
+  }, [session?.user?.id, lang])
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/api/auth/signin')
@@ -315,6 +328,19 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* AI daily briefing */}
+        {briefing && (
+          <div className="card p-4 flex items-start gap-3 border-l-4 border-l-violet-400 fade-up">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center flex-shrink-0">
+              <Sparkles size={16} className="text-white" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-violet-500 uppercase tracking-widest mb-0.5">Your daily briefing</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{briefing}</p>
+            </div>
+          </div>
+        )}
 
         {/* Metric cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
