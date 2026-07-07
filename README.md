@@ -1,302 +1,138 @@
-# AI-Based Symptom Checker + Appointment Booking System
+# 🩺 HealthAI — Agentic AI Health Platform
 
-A comprehensive HealthTech solution that combines AI-powered symptom analysis with intelligent appointment booking, designed to improve healthcare accessibility in underserved areas.
+[![CI](https://github.com/jhaashutosh07/ai-health-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/jhaashutosh07/ai-health-tracker/actions/workflows/ci.yml)
+![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-PostgreSQL-2D3748?logo=prisma)
+![OpenAI](https://img.shields.io/badge/AI-GPT--4o-412991?logo=openai)
+![Deploy](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel)
 
-## Features
+An all-in-one, AI‑powered health platform for the Indian context — symptom triage, real verified‑doctor discovery & booking, medicine intelligence, medical records, chronic‑care tools, and one‑tap emergency help. Built with GPT‑4o (chat + vision + voice), RAG, and a suite of real‑world integrations.
 
-### Core Functionality
-- **AI Symptom Checker**: Interactive chat interface powered by OpenAI GPT-4 for symptom analysis
-- **Severity Assessment**: Automatic evaluation of symptom severity (LOW, MEDIUM, HIGH, CRITICAL)
-- **Smart Recommendations**: AI-driven suggestions for self-care, doctor visits, urgent care, or emergency services
-- **Appointment Booking**: Schedule online or offline consultations based on severity
-- **Multi-user Support**: Separate dashboards for patients and doctors
-- **Medical History Tracking**: Comprehensive patient health records
-- **Automated Notifications**: Email and SMS confirmations for appointments
+**🔗 Live demo:** https://ai-health-tracker-lac.vercel.app
 
-### Technology Stack
-- **Frontend**: Next.js 14 (App Router), React, TypeScript, Tailwind CSS
-- **Backend**: Next.js API Routes, NextAuth.js
-- **Database**: PostgreSQL with Prisma ORM
-- **AI**: OpenAI GPT-4 API
-- **Notifications**: Nodemailer (Email), Twilio (SMS)
-- **Authentication**: NextAuth.js with credentials provider
-
-## Project Structure
-
-```
-├── app/                          # Next.js App Router
-│   ├── auth/                     # Authentication pages
-│   │   ├── signin/               # Sign in page
-│   │   └── register/             # Registration page
-│   ├── dashboard/                # Patient dashboard
-│   ├── doctor/                   # Doctor dashboard
-│   ├── symptom-check/            # Symptom checker interface
-│   ├── appointments/             # Appointment management
-│   ├── globals.css               # Global styles
-│   ├── layout.tsx                # Root layout
-│   ├── page.tsx                  # Landing page
-│   └── providers.tsx             # Session provider
-├── components/                   # React components
-│   └── SymptomChat.tsx          # AI chat interface
-├── lib/                          # Utilities
-│   ├── prisma.ts                # Prisma client
-│   ├── openai.ts                # OpenAI configuration
-│   ├── notifications.ts          # Email/SMS services
-│   └── utils.ts                 # Helper functions
-├── pages/api/                    # API routes
-│   ├── auth/                     # Authentication APIs
-│   ├── symptom-check/            # Symptom checker APIs
-│   ├── appointments/             # Appointment APIs
-│   └── doctor/                   # Doctor APIs
-├── prisma/                       # Database
-│   └── schema.prisma            # Database schema
-└── types/                        # TypeScript types
-    └── next-auth.d.ts           # NextAuth type definitions
-```
-
-## Getting Started
-
-### Prerequisites
-- Node.js 18+ and npm
-- PostgreSQL database
-- OpenAI API key
-- (Optional) Twilio account for SMS
-- (Optional) Email service (Gmail, SendGrid, etc.)
-
-### Installation
-
-1. **Clone and Install Dependencies**
-```bash
-npm install
-```
-
-2. **Set Up Environment Variables**
-
-Create a `.env` file in the root directory:
-
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/symptom_checker?schema=public"
-
-# NextAuth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-secret-key-here"  # Generate with: openssl rand -base64 32
-
-# OpenAI
-OPENAI_API_KEY="sk-your-openai-api-key"
-
-# Email (Gmail example)
-EMAIL_FROM="your-email@gmail.com"
-EMAIL_PASSWORD="your-app-password"
-
-# Twilio (Optional - for SMS)
-TWILIO_ACCOUNT_SID="your-twilio-sid"
-TWILIO_AUTH_TOKEN="your-twilio-token"
-TWILIO_PHONE_NUMBER="+1234567890"
-```
-
-3. **Set Up Database**
-
-```bash
-# Generate Prisma client
-npx prisma generate
-
-# Run database migrations
-npx prisma db push
-
-# (Optional) Open Prisma Studio to view data
-npx prisma studio
-```
-
-4. **Run Development Server**
-
-```bash
-npm run dev
-```
-
-Visit [http://localhost:3000](http://localhost:3000) to see the application.
-
-### Activating AI knowledge search (RAG) — one-time
-
-"Ask HealthAI" can ground its general medical answers in a curated reference
-corpus and show clickable sources. The corpus lives in
-`data/knowledge/corpus.ts`; its embeddings are precomputed and committed to
-`data/knowledge/embeddings.json`. Until that file is populated, Ask HealthAI
-works normally but shows no Sources.
-
-To activate (run once, and again whenever you edit the corpus):
-
-```bash
-# Requires OPENAI_API_KEY in .env.local with available quota
-npm run ingest
-git add data/knowledge/embeddings.json
-git commit -m "chore: ingest knowledge base embeddings"
-git push   # triggers a redeploy that bundles the populated index
-```
-
-> Note: `npm run ingest` and `npm run evaluate` are offline tools. They are NOT
-> part of the build or deploy — deploying the app does **not** generate
-> embeddings. They must be run locally with an OpenAI key that has quota.
-
-### Validating the symptom checker (optional)
-
-```bash
-# Scores diagnostic accuracy + triage safety against standardized vignettes
-npm run evaluate
-```
-
-### Running tests
-
-```bash
-npm test
-```
-
-## Usage Guide
-
-### For Patients
-
-1. **Register**: Create an account as a Patient
-2. **Check Symptoms**:
-   - Go to "Check Symptoms" from dashboard
-   - Chat with AI assistant about your symptoms
-   - Receive severity assessment and recommendations
-3. **Book Appointment**:
-   - After symptom check, book an appointment if recommended
-   - Choose online or in-person consultation
-   - Select date and time
-   - Receive email/SMS confirmation
-4. **Track History**: View all appointments and past symptom checks
-
-### For Doctors
-
-1. **Register**: Create an account as a Doctor
-2. **View Appointments**: Access all scheduled appointments
-3. **Review Patient Data**:
-   - View AI symptom assessments
-   - Check patient symptoms and severity
-   - Review patient contact information
-4. **Manage Appointments**:
-   - Confirm pending appointments
-   - Mark appointments as completed
-   - Cancel if necessary
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/signin` - User login
-- `POST /api/auth/signout` - User logout
-
-### Symptom Checker
-- `POST /api/symptom-check/chat` - Chat with AI symptom checker
-
-### Appointments
-- `GET /api/appointments` - Get user appointments
-- `POST /api/appointments/create` - Create new appointment
-- `POST /api/appointments/send-notification` - Send appointment notification
-
-### Doctor
-- `GET /api/doctor/appointments` - Get doctor's appointments
-- `PATCH /api/doctor/appointments` - Update appointment status
-
-## Database Schema
-
-### Key Models
-- **User**: Patient and doctor accounts with role-based access
-- **SymptomLog**: AI symptom analysis records with severity
-- **Appointment**: Appointment bookings with status tracking
-- **MedicalHistory**: Patient medical history records
-- **Doctor**: Doctor profiles with specializations
-
-## Features Breakdown
-
-### AI Symptom Analysis
-The system uses GPT-4 to:
-- Ask clarifying questions about symptoms
-- Assess severity on a 4-level scale
-- Suggest possible conditions (not diagnose)
-- Recommend appropriate action level
-- Generate comprehensive reports
-
-### Severity Levels
-- **LOW**: Self-care recommendations
-- **MEDIUM**: See doctor within a few days
-- **HIGH**: Urgent care recommended
-- **CRITICAL**: Emergency room immediately
-
-### Notification System
-Automated notifications sent for:
-- Appointment confirmations
-- Appointment reminders
-- Status updates
-
-## Deployment
-
-### Vercel (Recommended)
-
-1. Push code to GitHub
-2. Connect repository to Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy
-
-### Database Hosting
-- **Neon**: Free PostgreSQL hosting
-- **Supabase**: PostgreSQL with additional features
-- **Railway**: Simple PostgreSQL deployment
-
-## Security Considerations
-
-- Passwords hashed with bcryptjs
-- Session-based authentication with NextAuth.js
-- Role-based access control (Patient/Doctor/Admin)
-- API route protection with middleware
-- Environment variables for sensitive data
-- HTTPS recommended for production
-
-## Future Enhancements
-
-- [ ] Integration with Infermedica API for medical accuracy
-- [ ] Video consultation feature for online appointments
-- [ ] Prescription management
-- [ ] Lab report uploads
-- [ ] Multi-language support
-- [ ] Mobile app (React Native)
-- [ ] Advanced analytics dashboard
-- [ ] Insurance integration
-- [ ] Payment processing
-
-## Contributing
-
-This is an open-source project. Contributions are welcome!
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
-## License
-
-MIT License - feel free to use this project for learning and development.
-
-## Disclaimer
-
-**IMPORTANT**: This system is for educational and demonstration purposes. It should NOT replace professional medical advice, diagnosis, or treatment. Always consult qualified healthcare professionals for medical concerns.
-
-## Support
-
-For issues and questions:
-- Open an issue on GitHub
-- Check documentation
-- Review API logs for errors
-
-## Acknowledgments
-
-- OpenAI for GPT-4 API
-- Next.js team for the amazing framework
-- Prisma for the excellent ORM
-- All contributors and users
+> ⚠️ **Medical disclaimer:** HealthAI provides AI‑generated information and guidance, **not** a medical diagnosis. It is not a substitute for a qualified doctor. For emergencies, call **112**.
 
 ---
 
-Built with ❤️ for improving healthcare accessibility
+## ✨ Features
+
+### For patients
+- **AI Symptom Checker** — conversational (chat or **voice**) assessment returning likely conditions, OTC suggestions (Indian brands), red flags and a recommendation, with a deterministic emergency safety layer.
+- **Hands‑free Voice Assistant** — talk and hear replies, with natural cloud TTS for **Hindi, Bengali & regional languages**. Includes a **Cough & Breathing Check**.
+- **AI Image Diagnosis** — analyze a skin/wound/rash photo or a lab report with GPT‑4o vision.
+- **AI Second‑Opinion Panel** — a virtual panel of specialist personas that each weigh in, then synthesize a consensus.
+- **Ask HealthAI** — RAG‑grounded Q&A over the user's **own records** with cited sources; plus a **global floating assistant** on every page.
+- **Find & Book Doctors** — real nearby clinics via **Google Places API (New)** merged with the platform's verified doctors, per‑doctor **AI insight**, ratings and phone numbers, nearest‑first.
+- **Appointments** — booking with **real‑time** status updates (Pusher) + email confirmations.
+- **Medicine Checker & Pill Identifier** — snap a tablet/strip to identify it, and AI checks interactions across your medications.
+- **Prescription Scanner** — photograph an Rx → auto‑adds medicines to your tracker.
+- **Medications** — schedules, dose logging, adherence, reminders (email cron).
+- **Vitals & Lab Trends** — log vitals; upload lab reports → AI extracts values and charts them over time.
+- **Chronic Care Programs**, **Diet Planner**, **Risk Calculators** (Diabetes IDRS / BMI / Heart), **PHQ‑9 & GAD‑7 screenings**, **Mood Tracker** + **Wellbeing Companion**.
+- **Health Report (PDF)**, **QR Health Passport**, **Achievements/gamification**, **Command Palette (⌘/Ctrl+K)**.
+- **Emergency** — one‑tap **SOS** (live location + medical card over WhatsApp / SMS), a scannable **Emergency Card**, and in‑card nearest hospital/pharmacy lookup.
+- **Multilingual** (English, Hindi, Bengali, Tamil, Telugu, Marathi) with AI responses in the selected language.
+
+### For doctors
+- **Verified‑doctor portal** — access gated by **NMC / Indian Medical Register** verification.
+- **Real‑time appointment dashboard**, **AI pre‑consultation patient briefs** (scoped to booked patients), **digital prescriptions**, and an **AI SOAP‑note scribe** (transcribe a consult → structured notes + Rx draft).
+
+---
+
+## 🧱 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | **Next.js 14** (Pages Router) · **TypeScript** |
+| Database | **PostgreSQL** (Neon) via **Prisma ORM** |
+| Auth | **NextAuth** — credentials + Google OAuth |
+| AI | **OpenAI GPT‑4o** (chat, vision, RAG) · `gpt-4o-mini-tts` (voice) |
+| Doctor data | **Google Places API (New)** |
+| Verification | **NMC Indian Medical Register** lookup |
+| Realtime | **Pusher** |
+| Messaging | **WhatsApp Cloud API** (SOS) · **Nodemailer/Gmail** · **Twilio** (fallback) |
+| UI | **Tailwind CSS** · lucide‑react · Recharts · Plus Jakarta Sans |
+| Testing | **Jest** · node‑mocks‑http |
+| Hosting | **Vercel** (CI/CD from `main`) |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 20+
+- A PostgreSQL database (e.g. [Neon](https://neon.tech))
+- An OpenAI API key (required); Google/Pusher/WhatsApp keys are optional per feature
+
+### Install & run
+```bash
+git clone https://github.com/jhaashutosh07/ai-health-tracker.git
+cd ai-health-tracker
+npm install
+
+cp .env.example .env.local   # then fill in your values
+
+npm run db:push              # apply the Prisma schema
+npm run db:seed              # (optional) demo data
+
+npm run dev                  # http://localhost:3000
+```
+
+### Environment variables
+See [`.env.example`](.env.example) for the full list. Key ones:
+
+| Variable | Purpose |
+|---|---|
+| `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING` | Database (pooled + direct) |
+| `NEXTAUTH_URL`, `NEXTAUTH_SECRET` | Auth |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign‑in |
+| `OPENAI_API_KEY` | All AI features (**required**) |
+| `OPENAI_CHAT_MODEL`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE` | Model overrides |
+| `GOOGLE_PLACES_API_KEY` | Real nearby doctors/hospitals (server‑side key) |
+| `EMAIL_FROM`, `EMAIL_PASSWORD` | Transactional email (Gmail app password) |
+| `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN` | WhatsApp SOS + bot |
+| `PUSHER_*`, `NEXT_PUBLIC_PUSHER_*` | Real‑time updates |
+| `DEMO_VERIFIED_DOCTORS` | Emails auto‑verified as doctors (demo) |
+| `NEXT_PUBLIC_DEMO_VIDEO_URL` | "Watch demo" popup video (optional) |
+
+---
+
+## 🗂️ Project Structure
+```
+pages/            Next.js pages + API routes (pages/api/**)
+components/       Shared UI (AppShell, SymptomChat, FloatingAssistant, …)
+lib/              openai, prisma, rag, i18n, whatsapp, nmcVerify, auth helpers
+prisma/           schema.prisma + seed
+data/             curated medical knowledge corpus (RAG)
+__tests__/        Jest tests
+scripts/          seeding / ingest / evaluation utilities
+```
+
+---
+
+## 🧪 Testing & CI
+```bash
+npm test          # Jest suite
+npm run build     # production build
+```
+Every push / PR to `main` runs the **CI workflow** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): install → Prisma generate → tests → build.
+
+---
+
+## ☁️ Deployment
+Deployed on **Vercel**, auto‑building from `main`. The Vercel build command runs `prisma generate && prisma db push && next build` so schema changes apply on deploy.
+
+---
+
+## 🔒 Security & Privacy
+- Doctors are verified against the real medical register before accessing patient data; patient records are access‑scoped.
+- Medical documents are stored privately and served through an authenticated, ownership‑checked route.
+- Passwords are bcrypt‑hashed; auth endpoints are rate‑limited; the emergency card is shared via an unguessable token.
+
+---
+
+## 📄 License
+For educational / demonstration purposes.
+
+<sub>Built with Next.js, Prisma & OpenAI. AI output is informational only and not a substitute for professional medical advice.</sub>
