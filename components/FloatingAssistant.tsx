@@ -29,10 +29,11 @@ export default function FloatingAssistant() {
 
   return (
     <>
-      {/* Launcher */}
+      {/* Launcher — bottom-left so it doesn't collide with the SOS button (bottom-right).
+          Raised on mobile to clear the bottom nav. */}
       {!open && (
         <button onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full brand-gradient text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-transform"
+          className="fixed left-5 bottom-20 lg:bottom-5 z-40 w-14 h-14 rounded-full brand-gradient text-white flex items-center justify-center shadow-2xl hover:scale-105 transition-transform"
           style={{ boxShadow: '0 12px 30px -6px rgba(99,102,241,0.6)' }} aria-label="Open AI assistant">
           <Sparkles size={22} />
           <span className="absolute inset-0 rounded-full brand-gradient animate-ping opacity-20" />
@@ -41,7 +42,7 @@ export default function FloatingAssistant() {
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-5 right-5 z-40 w-[92vw] max-w-sm h-[70vh] max-h-[560px] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-slate-200 bg-white fade-up">
+        <div className="fixed left-4 bottom-20 lg:left-5 lg:bottom-5 z-40 w-[92vw] max-w-sm h-[70vh] max-h-[560px] flex flex-col rounded-2xl overflow-hidden shadow-2xl border border-slate-200 bg-white fade-up">
           <div className="brand-gradient text-white px-4 py-3 flex items-center gap-2.5 flex-shrink-0">
             <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center"><Bot size={16} /></div>
             <div className="flex-1"><p className="font-bold text-sm leading-none">HealthAI Assistant</p><p className="text-[11px] text-white/70 mt-0.5">Grounded in your records</p></div>
