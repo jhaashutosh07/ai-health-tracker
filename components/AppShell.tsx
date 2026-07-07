@@ -143,6 +143,8 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
   const [locError, setLocError] = useState<string | null>(null)
 
   const [locatingFor, setLocatingFor] = useState<string | null>(null)
+  const [nearby, setNearby] = useState<any[]>([])
+  const [nearbyLabel, setNearbyLabel] = useState<string>('')
 
   // Notifications
   const [notifOpen, setNotifOpen] = useState(false)
@@ -193,18 +195,31 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
     }
   }
 
-  const findNearby = useCallback((query: string) => {
+  const findNearby = useCallback((query: string, label: string) => {
     if (!navigator.geolocation) {
       setLocError('Geolocation is not supported by your browser.')
       return
     }
     setLocatingFor(query)
     setLocError(null)
+    setNearby([])
+    setNearbyLabel(label)
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setLocatingFor(null)
-        const url = `https://www.google.com/maps/search/${encodeURIComponent(query)}/@${coords.latitude},${coords.longitude},14z`
-        window.open(url, '_blank', 'noopener,noreferrer')
+      async ({ coords }) => {
+        try {
+          const res = await fetch('/api/emergency/nearby', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude: coords.latitude, longitude: coords.longitude, query }),
+          })
+          const data = await res.json()
+          if (!res.ok) throw new Error(data.message)
+          setNearby(data.places || [])
+          if (!(data.places || []).length) setLocError(`No ${label.toLowerCase()} found nearby.`)
+        } catch (e: any) {
+          setLocError(e.message || 'Could not fetch nearby places.')
+        } finally {
+          setLocatingFor(null)
+        }
       },
       (err) => {
         setLocatingFor(null)
@@ -573,7 +588,7 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
                   {nearbyCategories.map(({ label, query, icon: Icon, bg, text, iconBg }) => (
                     <button
                       key={query}
-                      onClick={() => findNearby(query)}
+                      onClick={() => findNearby(query, label)}
                       disabled={locatingFor === query}
                       className={`flex items-center gap-3 p-3.5 rounded-2xl border text-left transition-all disabled:opacity-60 ${bg}`}
                     >
@@ -592,6 +607,38 @@ export default function AppShell({ children, title, breadcrumb }: AppShellProps)
                 </div>
                 {locError && (
                   <p className="mt-2 text-xs text-red-600 text-center bg-red-50 rounded-xl py-2 px-3">{locError}</p>
+                )}
+
+                {/* Inline results — shown right here in the card (no redirect) */}
+                {nearby.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Nearest {nearbyLabel}</p>
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {nearby.map((p) => (
+                        <div key={p.id} className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100 bg-white">
+                          <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                            <MapPin size={15} className="text-red-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-slate-800 truncate">{p.name}</p>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              <span className="font-semibold text-slate-500">{p.distanceText}</span>
+                              {p.openNow === true ? <span className="text-emerald-600"> · Open</span> : p.openNow === false ? <span className="text-red-500"> · Closed</span> : ''}
+                              {p.address ? ` · ${p.address}` : ''}
+                            </p>
+                          </div>
+                          {p.phone && (
+                            <a href={`tel:${p.phone}`} onClick={e => e.stopPropagation()} className="w-8 h-8 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center flex-shrink-0" title="Call">
+                              <Phone size={14} />
+                            </a>
+                          )}
+                          <a href={p.directions} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="w-8 h-8 rounded-lg bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center flex-shrink-0" title="Directions">
+                            <Share2 size={14} />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 
